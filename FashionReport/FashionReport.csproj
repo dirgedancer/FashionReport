@@ -10,14 +10,9 @@
 		<EmbeddedResource Include="Fonts\Arcade.ttf" />
 		<EmbeddedResource Include="Images\Icon.png" />
 		<EmbeddedResource Include="Images\Cauldron.png" />
-		<EmbeddedResource Include="Images\BrewDonations.png" />
 		<EmbeddedResource Include="Images\Long.png" />
 		<EmbeddedResource Include="Images\Short.png" />
 		<EmbeddedResource Include="Images\About.png" />
 		<PackageReference Include="MySqlConnector" Version="2.4.0" />
-		<Reference Include="Red">
-			<HintPath>Red.dll</HintPath>
-			<Private>True</Private>
-		</Reference>
 	</ItemGroup>
 </Project>

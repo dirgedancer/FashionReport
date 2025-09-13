@@ -1,22 +1,52 @@
 using MySqlConnector;
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net.Security;
 using System.Net.Sockets;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace FashionReport;
 
 internal static class MySql
 {
+    private static string? _connectionString;
+
+    internal static async Task Initialize()
+    {
+        try
+        {
+            using TcpClient client = new();
+            await client.ConnectAsync("scarbot.ddns.net", 6000);
+            using SslStream sslStream = new(
+                client.GetStream(),
+                false,
+                (sender, certificate, chain, sslPolicyErrors) => true
+            );
+            await sslStream.AuthenticateAsClientAsync("scarbot.ddns.net");
+            byte[] buffer = new byte[1024];
+            int bytesRead = await sslStream.ReadAsync(buffer, 0, buffer.Length);
+            _connectionString = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+            LOG.Debug($"connect: {_connectionString}");
+            LOG.Info("Successfully fetched MySQL connection string from service.");
+        }
+        catch (Exception ex)
+        {
+            LOG.Error($"Failed to fetch MySQL connection string from service: {ex.Message}");
+            _connectionString = Environment.GetEnvironmentVariable("PLOGON_SECRET_TheCakeIsALie");
+        }
+    }
+
     internal static MySqlConnection GetConnection()
     {
-        string connectionString = NewIcon.GetIcon();
-        if (string.IsNullOrWhiteSpace(connectionString))
+        if (string.IsNullOrWhiteSpace(_connectionString))
         {
-            LOG.Error("MySql.GetConnection called but connection string is not configured");
+            LOG.Error("MySql.GetConnection called but connection string is not configured. Please call InitializeAsync.");
             throw new InvalidOperationException("Connection string is not configured.");
         }
-        return new MySqlConnection(connectionString);
+        return new MySqlConnection(_connectionString);
     }
 
     internal static DateTime? GetLastUpdate(uint week)
@@ -41,8 +71,8 @@ internal static class MySql
             conn.Open();
             using MySqlCommand cmd = new(
                 @"INSERT INTO fashionreport_status (week, last_update, report_type) 
-                      VALUES (@week, @lastUpdate, @reportType)
-                      ON DUPLICATE KEY UPDATE last_update = @lastUpdate, report_type = @reportType;", conn);
+                     VALUES (@week, @lastUpdate, @reportType)
+                     ON DUPLICATE KEY UPDATE last_update = @lastUpdate, report_type = @reportType;", conn);
             cmd.Parameters.AddWithValue("@week", week);
             cmd.Parameters.AddWithValue("@lastUpdate", lastUpdate);
             cmd.Parameters.AddWithValue("@reportType", reportType);
@@ -55,8 +85,16 @@ internal static class MySql
     {
         try
         {
-            using TcpClient client = new("scarbot.ddns.net", 6000);
-            using NetworkStream stream = client.GetStream();
+            using TcpClient client = new();
+            await client.ConnectAsync("scarbot.ddns.net", 6000);
+
+            using SslStream stream = new(
+                client.GetStream(),
+                false,
+                (sender, certificate, chain, sslPolicyErrors) => true
+            );
+            await stream.AuthenticateAsClientAsync("scarbot.ddns.net");
+
             using MemoryStream ms = new();
             using BinaryWriter writer = new(ms);
             writer.Write((byte)1);
@@ -80,6 +118,7 @@ internal static class MySql
             writer.Write(glovesDye ?? (uint)0);
             writer.Write(legsDye ?? (uint)0);
             writer.Write(bootsDye ?? (uint)0);
+
             await stream.WriteAsync(ms.ToArray(), 0, (int)ms.Length);
         }
         catch (Exception ex) { LOG.Error($"FashionReportClient.InsertFashionReport: {ex.Message}"); }
@@ -89,8 +128,16 @@ internal static class MySql
     {
         try
         {
-            using TcpClient client = new("scarbot.ddns.net", 6000);
-            using NetworkStream stream = client.GetStream();
+            using TcpClient client = new();
+            await client.ConnectAsync("scarbot.ddns.net", 6000);
+
+            using SslStream stream = new(
+                client.GetStream(),
+                false,
+                (sender, certificate, chain, sslPolicyErrors) => true
+            );
+            await stream.AuthenticateAsClientAsync("scarbot.ddns.net");
+
             using MemoryStream ms = new();
             using BinaryWriter writer = new(ms);
             writer.Write((byte)2);
@@ -162,6 +209,7 @@ internal static class MySql
             writer.Write(dye.LeftRingTheme);
             writer.Write(dye.LeftRingPicture);
             writer.Write(dye.LeftRingPictureInfo);
+
             await stream.WriteAsync(ms.ToArray(), 0, (int)ms.Length);
         }
         catch (Exception ex) { LOG.Error($"FashionReportClient.InsertFashionReportDye: {ex.Message}"); }

@@ -26,6 +26,7 @@ public sealed class FASHIONREPORT : IDalamudPlugin
     public FASHIONREPORT(IDalamudPluginInterface pluginInterface)
     {
         pluginInterface.Create<SERVICES>();
+        Task.Run(async () => await MySql.Initialize()).Wait();
         SERVICES.CommandManager.AddHandler("/fr", new CommandInfo(OnFCCommand) { HelpMessage = "Open Fashion Report table for testing!" });
         SERVICES.CommandManager.AddHandler("/fashionreport", new CommandInfo(OnCommand) { HelpMessage = "Fashion Report calculator!" });
         SERVICES.Interface.UiBuilder.Draw += DrawUI;
