@@ -6,7 +6,7 @@
   "Tags": [ "Fashion Report", "Gold Saucer", "Mini Game", "Masked Rose", "Glamour", "MGP" ],
   "CategoryTags": [ "Utility", "UI" ],
   "InternalName": "FashionReport",
-  "AssemblyVersion": "1.0.1",
+  "AssemblyVersion": "1.0.2",
   "ApplicableVersion": "any",
   "RepoUrl": "https://github.com/TheRedheadedWitch/FashionReport",
   "DownloadLinkInstall": "https://github.com/TheRedheadedWitch/FashionReport/releases/download/latest",
