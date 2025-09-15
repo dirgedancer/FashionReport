@@ -13,21 +13,15 @@
 		<Content Include="FashionReport.json" CopyToOutputDirectory="Always" />
 		<EmbeddedResource Include="Fonts\Arcade.ttf">
 			<LogicalName>FashionReport.Fonts.Arcade.ttf</LogicalName>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</EmbeddedResource>
 		<EmbeddedResource Include="Images\Icon.png" />
 		<EmbeddedResource Include="Images\Cauldron.png" />
 		<EmbeddedResource Include="Images\Long.png" />
 		<EmbeddedResource Include="Images\Short.png" />
 		<EmbeddedResource Include="Images\About.png" />
-	</ItemGroup>
-
-	<ItemGroup>
 		<PackageReference Include="MySqlConnector" Version="2.4.0" />
 		<PackageReference Include="Costura.Fody" Version="5.7.0" PrivateAssets="all" />
 		<PackageReference Include="Fody" Version="6.8.0" PrivateAssets="all" />
-	</ItemGroup>
-
-	<ItemGroup>
-		<None Remove="Fonts\Arcade.ttf" />
 	</ItemGroup>
 </Project>
