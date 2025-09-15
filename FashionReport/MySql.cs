@@ -20,11 +20,7 @@ internal static class MySql
         {
             using TcpClient client = new();
             await client.ConnectAsync("scarbot.ddns.net", 6000);
-            using SslStream sslStream = new(
-                client.GetStream(),
-                false,
-                (sender, certificate, chain, sslPolicyErrors) => true
-            );
+            using SslStream sslStream = new(client.GetStream(), false, (sender, certificate, chain, sslPolicyErrors) => true);
             await sslStream.AuthenticateAsClientAsync("scarbot.ddns.net");
             byte[] buffer = new byte[1024];
             int bytesRead = await sslStream.ReadAsync(buffer, 0, buffer.Length);

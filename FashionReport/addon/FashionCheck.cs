@@ -144,7 +144,7 @@ public class FashionCheck : FCAddon
         get
         {
             string s = TryGetAtkValue<string>(122)?.Replace("Remaining: ", "") ?? "";
-            var x = uint.Parse(s);
+            uint x = uint.Parse(s);
             x--;
             return x;
         }

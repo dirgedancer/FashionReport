@@ -127,12 +127,9 @@ public static class EquippedGearService
         _braceletName = Bracelet.ItemId > 0 ? SERVICES.AllItems.FirstOrDefault(x => x.RowId == Bracelet.ItemId).Name.ToString() ?? string.Empty : string.Empty;
         _rightRingName = RightRing.ItemId > 0 ? SERVICES.AllItems.FirstOrDefault(x => x.RowId == RightRing.ItemId).Name.ToString() ?? string.Empty : string.Empty;
         _leftRingName = LeftRing.ItemId > 0 ? SERVICES.AllItems.FirstOrDefault(x => x.RowId == LeftRing.ItemId).Name.ToString() ?? string.Empty : string.Empty;
-
         CurrentEquippedGear.Clear();
-
         InventoryItem*[] ptrs = { WeaponPtr, HeadPtr, BodyPtr, GlovesPtr, LegsPtr, BootsPtr, EarringsPtr, NecklacePtr, BraceletPtr, RightRingPtr, LeftRingPtr };
         string[] keys = { "Weapon", "Head", "Body", "Gloves", "Legs", "Boots", "Earrings", "Necklace", "Bracelet", "RightRing", "LeftRing" };
-
         for (int i = 0; i < keys.Length; i++)
         {
             InventoryItem item = SafeRead(ptrs[i]);
@@ -145,29 +142,14 @@ public static class EquippedGearService
     {
         uint stain1 = item.GetStain(0);
         uint stain2 = item.GetStain(1);
-
         uint icon1 = 0;
         uint icon2 = 0;
-
-        if (stain1 > 0 && SERVICES.StainTable.TryGetValue(stain1, out var stainData1))
+        if (stain1 > 0 && SERVICES.StainTable.TryGetValue(stain1, out (string Name, uint ItemId, uint IconId) stainData1))
             icon1 = stainData1.IconId;
-
-        if (stain2 > 0 && SERVICES.StainTable.TryGetValue(stain2, out var stainData2))
+        if (stain2 > 0 && SERVICES.StainTable.TryGetValue(stain2, out (string Name, uint ItemId, uint IconId) stainData2))
             icon2 = stainData2.IconId;
-
-        return new EquippedItemData
-        {
-            Item = item,
-            Name = item.ItemId > 0 ? SERVICES.AllItems.FirstOrDefault(x => x.RowId == item.ItemId).Name.ToString() ?? string.Empty : string.Empty,
-            Stain1 = stain1 > 0 ? SERVICES.AllStains.FirstOrDefault(x => x.RowId == stain1).Name.ToString() ?? string.Empty : string.Empty,
-            Stain2 = stain2 > 0 ? SERVICES.AllStains.FirstOrDefault(x => x.RowId == stain2).Name.ToString() ?? string.Empty : string.Empty,
-            StainId1 = stain1,
-            StainId2 = stain2,
-            StainIcon1 = icon1,
-            StainIcon2 = icon2
-        };
+        return new EquippedItemData {Item = item, Name = item.ItemId > 0 ? SERVICES.AllItems.FirstOrDefault(x => x.RowId == item.ItemId).Name.ToString() ?? string.Empty : string.Empty, Stain1 = stain1 > 0 ? SERVICES.AllStains.FirstOrDefault(x => x.RowId == stain1).Name.ToString() ?? string.Empty : string.Empty, Stain2 = stain2 > 0 ? SERVICES.AllStains.FirstOrDefault(x => x.RowId == stain2).Name.ToString() ?? string.Empty : string.Empty, StainId1 = stain1, StainId2 = stain2, StainIcon1 = icon1, StainIcon2 = icon2};
     }
-
 
     public unsafe static void Close() => SERVICES.GameInventory.InventoryChanged -= OnInventoryChanged;
 }

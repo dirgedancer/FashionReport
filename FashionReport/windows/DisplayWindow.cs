@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using System.Numerics;
 using System.Reflection;
 using System.Runtime.Intrinsics.X86;
@@ -242,7 +245,7 @@ public class DisplayWindow : Window, IDisposable
 
                 string dyeText = "";
                 Vector4 color = Vector4.One;
-                if (dyeId != null && dyeId != 0 && SERVICES.StainTable.TryGetValue(dyeId.Value, out var stain))
+                if (dyeId != null && dyeId != 0 && SERVICES.StainTable.TryGetValue(dyeId.Value, out (string Name, uint ItemId, uint IconId) stain))
                 {
                     dyeText = " (" + stain.Name + ")";
                     color = GetIconColor(stain.IconId);
@@ -277,13 +280,10 @@ public class DisplayWindow : Window, IDisposable
                     _ => ""
                 };
                 TableCellTheme(themeName);
-//                TableCellCenteredText(themeName);
-
                 ImGui.TableNextColumn();
                 uint slotPoints = (uint)CalculateSlotPoints(slot);
                 TableCellCenteredText(slotPoints.ToString());
                 TotalSlot += slotPoints;
-
                 ImGui.TableNextColumn();
                 uint dyePoints = 0;
                 if (slot != "Earrings" && slot != "Necklace" && slot != "Bracelet" && slot != "RightRing" && slot != "LeftRing")
@@ -513,7 +513,7 @@ public class DisplayWindow : Window, IDisposable
         else if (slot == "RightRing") id = EquippedGearService.RightRing.GlamourId != 0 ? EquippedGearService.RightRing.GlamourId : EquippedGearService.RightRing.ItemId;
         else if (slot == "LeftRing") id = EquippedGearService.LeftRing.GlamourId != 0 ? EquippedGearService.LeftRing.GlamourId : EquippedGearService.LeftRing.ItemId;
         if (id == 0) return 0;
-        var theme = slot switch { "Weapon" => SERVICES.frdata.WeaponData, "Head" => SERVICES.frdata.HeadData, "Body" => SERVICES.frdata.BodyData, "Gloves" => SERVICES.frdata.GlovesData, "Legs" => SERVICES.frdata.LegsData, "Boots" => SERVICES.frdata.BootsData, "Earrings" => SERVICES.frdata.EarringsData, "Necklace" => SERVICES.frdata.NecklaceData, "Bracelet" => SERVICES.frdata.BraceletData, "RightRing" => SERVICES.frdata.RightRingData, "LeftRing" => SERVICES.frdata.LeftRingData, _ => null };
+        List<uint>? theme = slot switch { "Weapon" => SERVICES.frdata.WeaponData, "Head" => SERVICES.frdata.HeadData, "Body" => SERVICES.frdata.BodyData, "Gloves" => SERVICES.frdata.GlovesData, "Legs" => SERVICES.frdata.LegsData, "Boots" => SERVICES.frdata.BootsData, "Earrings" => SERVICES.frdata.EarringsData, "Necklace" => SERVICES.frdata.NecklaceData, "Bracelet" => SERVICES.frdata.BraceletData, "RightRing" => SERVICES.frdata.RightRingData, "LeftRing" => SERVICES.frdata.LeftRingData, _ => null };
         return theme == null || theme.Count == 0 ? (int)SlotMax[slot] : theme.Contains(id) ? (int)SlotMax[slot] : 2;
     }
 
