@@ -12,7 +12,7 @@
 	<ItemGroup>
 		<Content Include="FashionReport.json" CopyToOutputDirectory="Always" />
 		<EmbeddedResource Include="Fonts\Arcade.ttf">
-			<Link>Fonts\Arcade.ttf</Link>
+			<LogicalName>FashionReport.Fonts.Arcade.ttf</LogicalName>
 		</EmbeddedResource>
 		<EmbeddedResource Include="Images\Icon.png" />
 		<EmbeddedResource Include="Images\Cauldron.png" />
