@@ -15,7 +15,7 @@
 			<LogicalName>FashionReport.Fonts.Arcade.ttf</LogicalName>
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</EmbeddedResource>
-		<EmbeddedResource Include="images\Icon.png" />
+		<EmbeddedResource Include="images\icon.png" />
 		<EmbeddedResource Include="images\Cauldron.png" />
 		<EmbeddedResource Include="images\Long.png" />
 		<EmbeddedResource Include="images\Short.png" />
