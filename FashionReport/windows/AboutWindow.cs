@@ -29,8 +29,6 @@ internal class AboutWindow : Window, IDisposable
                 ImGui.Spacing();
                 ImGui.TextWrapped("Database - Explains how the database system works.");
                 ImGui.Spacing();
-                ImGui.TextWrapped("Database - Explains how the database system works.");
-                ImGui.Spacing();
                 ImGui.TextWrapped("Connections - How to connect with us");
                 ImGui.Spacing();
                 ImGui.TextWrapped("Contributions - How to contribute to the database");

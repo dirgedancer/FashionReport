@@ -1,0 +1,24 @@
+name: Build Plugin
+
+on:
+  push:
+    branches:
+      - main
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Inject Credentials
+        run: echo "namespace FashionReport.Internal { public static class Credentials { public const string JsonKey = @\"${{ secrets.GOOGLESHEETSREADONLYKEY }}\"; } }" > FashionReport/Internal/Credentials.cs
+        shell: pwsh
+
+      - name: Build and Package
+        run: dotnet publish -c Release -o ./dist

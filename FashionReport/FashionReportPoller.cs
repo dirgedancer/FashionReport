@@ -8,67 +8,63 @@ namespace FashionReportCalculator;
 internal static class FashionReportPoller
 {
     private static Timer? timer;
-    internal static bool IsTuesdayComplete { get; private set; }
-    internal static bool IsFridayComplete { get; private set; }
-    internal static event Action? OnTuesdayUpdate;
-    internal static event Action? OnFridayUpdate;
+    //internal static event Action? OnTuesdayUpdate;
+    //internal static event Action? OnFridayUpdate;
 
     internal static void Initialize(int pollIntervalMs = 900_000)
     {
         timer = new Timer(pollIntervalMs) { AutoReset = true };
-        timer.Elapsed += async (_, _) => await CheckPollersAsync();
-        IsTuesdayComplete = false;
-        IsFridayComplete = false;
+        timer.Elapsed += async (_, _) => await CheckPollers();
         timer.Start();
     }
 
-    private static async Task CheckPollersAsync()
+    private static async Task CheckPollers()
     {
         try
         {
-            uint currentWeek = CurrentWeek;
-            uint currentDyeWeek = CurrentDyeWeek;
-
-            if (currentWeek > LastCheckedWeek)
+            if (CurrentWeek > SERVICES.frdata.Week)
             {
-                IsTuesdayComplete = false;
-                IsFridayComplete = false;
-                LastCheckedWeek = currentWeek;
-            }
-
-            if (!IsTuesdayComplete)
-            {
-                bool weekExists = await GoogleSheetData.WeekExists(currentWeek);
-                if (weekExists)
+                bool Updated = await GoogleSheetData.WeekExists(CurrentWeek);
+                if (Updated)
                 {
-                    FashionReportDataStorage? temp = await GoogleSheetData.GetLatestReport();
-                    if (temp == null) return;
-                    IsTuesdayComplete = true;
-                    if (temp!.Week > SERVICES.frdata.Week)
-                        SERVICES.frdata = temp;
-                    OnTuesdayUpdate?.Invoke();
+                    FashionReportDataStorage? report = await GoogleSheetData.GetLatestReport();
+                    if (report == null) return;
+                    if (report.Week > SERVICES.frdata.Week)
+                    {
+                        SERVICES.frdata = report;
+                        LOG.Info("Tuesday Server and Client updated, waiting until Friday");
+                        await Task.Delay(WaitForFriday());
+                    }
                 }
-                return;
             }
-
-            if (!IsFridayComplete && currentDyeWeek == currentWeek)
+            else if ((CurrentWeek == SERVICES.frdata.Week) && (GetFridayOfDyeWeek(CurrentWeek) > DateTime.Now))
+            {
+                LOG.Info("Tuesday Server and Client updated, waiting until Friday");
+                await Task.Delay(WaitForFriday());
+            }
+            else
             {
                 FashionReportDataStorage? report = await GoogleSheetData.GetLatestReport();
-                if (report != null)
+                if (report == null) return;
+                int dyesFound = 0;
+                if (report.WeaponDye != null) dyesFound++;
+                if (report.HeadDye != null) dyesFound++;
+                if (report.BodyDye != null) dyesFound++;
+                if (report.GlovesDye != null) dyesFound++;
+                if (report.LegsDye != null) dyesFound++;
+                if (report.BootsDye != null) dyesFound++;
+                await report.ProcessFromId();
+                if (report != SERVICES.frdata)
                 {
-                    int dyesFound = 0;
-                    if (report.WeaponDye != null) dyesFound++;
-                    if (report.HeadDye != null) dyesFound++;
-                    if (report.BodyDye != null) dyesFound++;
-                    if (report.GlovesDye != null) dyesFound++;
-                    if (report.LegsDye != null) dyesFound++;
-                    if (report.BootsDye != null) dyesFound++;
-                    if (dyesFound > 0) OnFridayUpdate?.Invoke();
-                    if (dyesFound >= 6) IsFridayComplete = true;
+                    SERVICES.frdata = report;
+                    LOG.Info("Updated Dye(s)");
                 }
+                //if (dyesFound > 0) OnFridayUpdate?.Invoke();
+                if (dyesFound >= 6)
+                    await Task.Delay(WaitForNewWeek());
             }
         }
-        catch (Exception ex) { LOG.Error($"FashionReportPoller.CheckPollersAsync: {ex.Message}"); }
+        catch (Exception ex) { LOG.Error($"FashionReportPoller.CheckPollers: {ex.Message}"); }
     }
 
     internal static void Dispose()
@@ -81,8 +77,10 @@ internal static class FashionReportPoller
         }
     }
 
-    private static uint LastCheckedWeek { get; set; } = CurrentWeek;
+    private static TimeSpan WaitForFriday() => GetFridayOfDyeWeek(CurrentWeek) > DateTime.Now ? GetFridayOfDyeWeek(CurrentWeek) - DateTime.Now : TimeSpan.Zero;
+    private static TimeSpan WaitForNewWeek() => GetTuesdayNextWeek() > DateTime.Now ? GetTuesdayNextWeek() - DateTime.Now : TimeSpan.Zero;
     internal static uint CurrentWeek => (uint)((DateTime.UtcNow - new DateTime(2018, 1, 23, 8, 0, 0, DateTimeKind.Utc)).TotalDays / 7);
     internal static uint CurrentDyeWeek => (uint)((DateTime.UtcNow - new DateTime(2018, 1, 26, 8, 0, 0, DateTimeKind.Utc)).TotalDays / 7);
     internal static DateTime GetFridayOfDyeWeek(uint dyeWeek) => new DateTime(2018, 1, 26, 8, 0, 0, DateTimeKind.Utc).AddDays(dyeWeek * 7);
+    internal static DateTime GetTuesdayNextWeek() => new DateTime(2018, 1, 23, 8, 0, 0, DateTimeKind.Utc).AddDays((CurrentWeek + 1) * 7);
 }

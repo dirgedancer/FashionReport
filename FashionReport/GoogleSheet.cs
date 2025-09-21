@@ -1,20 +1,11 @@
-﻿using Google.Apis.Auth.OAuth2;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
+using System.Text;
+using Dalamud.Game.ClientState.Objects.SubKinds;
+using Google.Apis.Auth.OAuth2;
 using Google.Apis.Services;
 using Google.Apis.Sheets.v4;
 using Google.Apis.Sheets.v4.Data;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.IO;
-using System.Text;
-using System.Text.Json;
-using System.Net.Http;
-using System.Threading.Tasks;
-using System.Reflection;
-using System.Text.Json.Serialization.Metadata;
-using Dalamud.Game.ClientState.Objects.SubKinds;
-using System.Globalization;
-using System.Runtime.CompilerServices;
 using Lumina.Excel;
 using Lumina.Excel.Sheets;
 
@@ -28,16 +19,31 @@ internal static class GoogleSheetData
     internal static void Initialize()
     {
         if (_service != null) return;
-        string? credentialsJson = Environment.GetEnvironmentVariable("GOOGLESHEETSREADONLYKEY");
-        if (string.IsNullOrEmpty(credentialsJson))
-            throw new InvalidOperationException("GOOGLESHEETSREADONLYKEY environment variable is not set.");
-        GoogleCredential credential = GoogleCredential.FromJson(credentialsJson).CreateScoped(SheetsService.Scope.Spreadsheets);
-        _service = new SheetsService(new BaseClientService.Initializer { HttpClientInitializer = credential, ApplicationName = "FashionReportPlugin" });
+        string json;
+        Assembly assembly = Assembly.GetExecutingAssembly();
+        using (Stream? stream = assembly.GetManifestResourceStream("FashionReport.Data.bin"))
+        {
+            if (stream == null) throw new FileNotFoundException("Embedded resource not found.", "FashionReport.FashionReportGoogleSheet.bin");
+            using (StreamReader reader = new StreamReader(stream, Encoding.UTF8))
+                json = reader.ReadToEnd();
+        }
+        json = NotString(json);
+        GoogleCredential credential = GoogleCredential.FromJson(json).CreateScoped(SheetsService.Scope.Spreadsheets);
+        try
+        {
+            _service = new SheetsService(new BaseClientService.Initializer { HttpClientInitializer = credential, ApplicationName = "FashionReportPlugin" });
+            _service.HttpClientInitializer.Initialize(_service.HttpClient);
+        }
+        catch (Google.Apis.Auth.OAuth2.Responses.TokenResponseException)
+        {
+            LOG.Debug("Google auth failed on first attempt, retrying...");
+            _service = new SheetsService(new BaseClientService.Initializer { HttpClientInitializer = credential, ApplicationName = "FashionReportPlugin" });
+        }
     }
 
     private static async Task<List<List<uint>>> FetchSheet(string sheetName)
     {
-        if (_service == null) Initialize();
+        Initialize();
         try
         {
             SpreadsheetsResource.ValuesResource.GetRequest request = _service!.Spreadsheets.Values.Get("1RWNR3MeKq49wfGVEBGIhDMtrJL40uhbtzuZtIpUbVw8", sheetName);
@@ -53,34 +59,25 @@ internal static class GoogleSheetData
                 }
             return data;
         }
-        catch (Google.Apis.Auth.OAuth2.Responses.TokenResponseException ex)
+        catch (Google.Apis.Auth.OAuth2.Responses.TokenResponseException)
         {
-            if (ex.Error != null && ex.Error.Error == "invalid_grant")
-            {
-                Initialize();
-                return await FetchSheet(sheetName);
-            }
-            throw;
+            _service = null;
+            return new List<List<uint>>();
         }
     }
 
-
     internal static async Task<bool> WeekExists(uint week)
     {
+        LOG.Debug("Running WeekExists");
         List<List<uint>> data = await FetchSheet("Data");
         return data.Any(r => r.Count > 0 && r[0] == week);
     }
 
     internal static async Task<bool> IsWeekUpdated(uint week)
     {
+        LOG.Debug("IsWeekUpdated Activated");
         List<List<uint>> data = await FetchSheet("Data");
         return data.Any(r => r.Count > 0 && r[0] == week);
-    }
-
-    internal static async Task<List<uint>> GetItemsForSlot(uint themeId, int slotId)
-    {
-        List<List<uint>> data = await FetchSheet("Data");
-        return data.Where(r => r.Count > 2 && r[0] == themeId && r[2] == slotId).Select(r => r[1]).ToList();
     }
 
     internal static async Task<List<uint>> GetThemeItemsForSlot(uint themeId, int slotId)
@@ -91,9 +88,11 @@ internal static class GoogleSheetData
 
     internal static async Task<FashionReportDataStorage?> GetLatestReport()
     {
+        LOG.Debug("Fetching LatestReport");
         List<List<uint>> data = await FetchSheet("Data");
         if (data.Count == 0) return null;
         int x = data.Count - 1;
+        if (data[x].Count < 13) return null;
         FashionReportDataStorage temp = new FashionReportDataStorage
         {
             Week = data[x][0],
@@ -108,16 +107,27 @@ internal static class GoogleSheetData
             Necklace = (uint?)data[x][9],
             Bracelet = (uint?)data[x][10],
             RightRing = (uint?)data[x][11],
-            LeftRing = (uint?)data[x][12],
-            WeaponDye = (uint?)data[x][14],
-            HeadDye = (uint?)data[x][15],
-            BodyDye = (uint?)data[x][16],
-            GlovesDye = (uint?)data[x][17],
-            LegsDye = (uint?)data[x][18],
-            BootsDye = (uint?)data[x][19]
+            LeftRing = (uint?)data[x][12]
         };
+        if (data[x].Count > 14) temp.WeaponDye = (uint?)data[x][14];
+        if (data[x].Count > 15) temp.HeadDye = (uint?)data[x][15];
+        if (data[x].Count > 16) temp.BodyDye = (uint?)data[x][16];
+        if (data[x].Count > 17) temp.GlovesDye = (uint?)data[x][17];
+        if (data[x].Count > 18) temp.LegsDye = (uint?)data[x][18];
+        if (data[x].Count > 19) temp.BootsDye = (uint?)data[x][19];
         await temp.ProcessFromId();
+        LOG.Debug($"GetLatestReport - temp.Week: {temp.Week}");
         return temp;
+    }
+
+    internal static void Reset() => _service = null;
+
+    public static string NotString(string input)
+    {
+        char[] chars = input.ToCharArray();
+        for (int i = 0; i < chars.Length; i++)
+            chars[i] = (char)~chars[i];
+        return new string(chars);
     }
 }
 

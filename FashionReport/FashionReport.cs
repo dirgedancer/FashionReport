@@ -126,14 +126,13 @@ public sealed class FashionReport : IDalamudPlugin
             await temp.ProcessorFromString();
             if (SERVICES.frdata != temp)
                 SERVICES.frdata = temp;
-            if ((SERVICES.frdata.Week != oldWeek || !await GoogleSheetData.IsWeekUpdated(SERVICES.frdata.Week)) && !FashionReportPoller.IsTuesdayComplete)
+            if (SERVICES.frdata.Week != oldWeek || !await GoogleSheetData.IsWeekUpdated(SERVICES.frdata.Week))
                 _ = Task.Run(async () =>
                 {
                     LOG.Debug("Saving to database ...");
                     await temp.SaveToDatabase();
                     LOG.Info($"FashionCheck week {SERVICES.frdata.Week} updated.");
                 });
-            if (FashionReportPoller.IsFridayComplete) return;
             if (temp.Weapon == null) return;
             nint g = await GetAddonSafe("FashionCheckScoreGauge", 10000, 100);
             FashionCheckScoreGauge Gauge = new(g);
