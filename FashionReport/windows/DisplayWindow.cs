@@ -34,20 +34,21 @@ public class DisplayWindow : Window, IDisposable
     private IFontHandle? WeekFontHandle = CreateFontFromResource("FashionReport.Fonts.Arcade.ttf", 48f, SERVICES.Interface.UiBuilder.FontAtlas);
     private IFontHandle? ShortWeeklyThemeFontHandle = CreateFontFromResource("FashionReport.Fonts.Arcade.ttf", 50f, SERVICES.Interface.UiBuilder.FontAtlas);
     private IFontHandle? ShortWeekFontHandle = CreateFontFromResource("FashionReport.Fonts.Arcade.ttf", 24f, SERVICES.Interface.UiBuilder.FontAtlas);
-    private string? SelectedTheme = null;
+    private string? uSlot = null;
+    private string? uTheme = null;
     internal Dictionary<string, List<DisplayItem>> DisplayData = new();
     private Vector2? cacheThemeWindowSize = null;
-    private List<DisplayItem>? cacheItems = null;
     private float? cacheScrollableHeight = null;
+    private List<DisplayItem>? cacheItems = null;
 
     public DisplayWindow() : base("Fashion Report Display Window", ImGuiWindowFlags.NoResize)
     {
         Size = _windowSize;
         SizeCondition = ImGuiCond.Always;
-        CauldronTexture = SERVICES.Texture.CreateFromImageAsync(Assembly.GetExecutingAssembly().GetManifestResourceStream("FashionReport.Images.Cauldron.png")!).Result;
-        AboutTexture = SERVICES.Texture.CreateFromImageAsync(Assembly.GetExecutingAssembly().GetManifestResourceStream("FashionReport.Images.About.png")!).Result;
-        ShortTexture = SERVICES.Texture.CreateFromImageAsync(Assembly.GetExecutingAssembly().GetManifestResourceStream("FashionReport.Images.Short.png")!).Result;
-        LongTexture = SERVICES.Texture.CreateFromImageAsync(Assembly.GetExecutingAssembly().GetManifestResourceStream("FashionReport.Images.Long.png")!).Result;
+        CauldronTexture = SERVICES.Texture.CreateFromImageAsync(Assembly.GetExecutingAssembly().GetManifestResourceStream("FashionReport.images.Cauldron.png")!).Result;
+        AboutTexture = SERVICES.Texture.CreateFromImageAsync(Assembly.GetExecutingAssembly().GetManifestResourceStream("FashionReport.images.About.png")!).Result;
+        ShortTexture = SERVICES.Texture.CreateFromImageAsync(Assembly.GetExecutingAssembly().GetManifestResourceStream("FashionReport.images.Short.png")!).Result;
+        LongTexture = SERVICES.Texture.CreateFromImageAsync(Assembly.GetExecutingAssembly().GetManifestResourceStream("FashionReport.images.Long.png")!).Result;
         float padding = ImGui.GetStyle().CellPadding.X * 2;
         slotWidth = ImGui.CalcTextSize("Right Ring (Metallic Cobalt Green)").X + padding;
         dyesWidth = ImGui.CalcTextSize("Metallic Cobalt Green").X + padding;
@@ -55,8 +56,6 @@ public class DisplayWindow : Window, IDisposable
         gearWidth = ImGui.CalcTextSize("Augmented Lunar Envoy's Fingerless Gloves of Maiming").X + padding;
         itemDyeWidth = ImGui.CalcTextSize("Metallic Cobalt Green").X + padding;
         pointsWidth = ImGui.CalcTextSize("Points").X + padding;
-        LOG.Debug("Starting to populate DisplayData dictionary.");
-
         foreach (string slot in SERVICES.FRSlots)
         {
             List<DisplayItem> slotItems = new();
@@ -90,22 +89,12 @@ public class DisplayWindow : Window, IDisposable
                 "LeftRing" => SERVICES.frdata.LeftRingThemeName,
                 _ => ""
             };
-
-            // This log line will show the raw data from your JSON for each slot.
-            LOG.Debug($"Processing slot: {slot}, Theme: \"{themeName}\", Item IDs count: {itemIds?.Count ?? 0}");
-
             if (itemIds == null || itemIds.Count == 0 || string.IsNullOrEmpty(themeName))
-            {
-                // This log line will tell you why a specific entry was skipped.
-                LOG.Debug($"Skipping slot: {slot} due to empty data or theme name.");
                 continue;
-            }
-
             foreach (uint itemId in itemIds)
             {
                 Item item = SERVICES.AllItems.FirstOrDefault(x => x.RowId == itemId);
                 if (item.RowId == 0) continue;
-
                 DisplayItem display = new()
                 {
                     ItemId = item.RowId,
@@ -119,13 +108,8 @@ public class DisplayWindow : Window, IDisposable
                 };
                 slotItems.Add(display);
             }
-
-            DisplayData[themeName] = slotItems;
-            // This log will confirm if a theme was successfully added to the dictionary.
-            LOG.Debug($"Successfully added \"{themeName}\" with {slotItems.Count} items.");
+            DisplayData[slot] = slotItems;
         }
-
-        // This log will confirm the final size of your dictionary.
         LOG.Debug($"Finished populating dictionary. Total themes populated: {DisplayData.Count}.");
 
     }
@@ -139,7 +123,7 @@ public class DisplayWindow : Window, IDisposable
         (float TableWidth, float TableHeight) = SERVICES.frdata.IsLongDisplay ? DrawLongTable() : DrawShortTable();
         Vector2 WindowPadding = ImGui.GetStyle().WindowPadding;
         _windowSize = new Vector2(TableWidth + (WindowPadding.X * 2), (TableHeight * 1.5f) + (WindowPadding.Y * 2));
-        if (SelectedTheme != null)
+        if (uSlot != null)
             DrawThemeWindow();
     }
 
@@ -148,19 +132,15 @@ public class DisplayWindow : Window, IDisposable
         string weeklyTheme = SERVICES.frdata.WeeklyThemeName ?? string.Empty;
         string weekText = SERVICES.frdata.Week.ToString();
         bool isOldWeek = SERVICES.frdata.Week != FashionReportPoller.CurrentWeek;
-
         IFontHandle? themeFont = SERVICES.frdata.IsLongDisplay ? WeeklyThemeFontHandle : ShortWeeklyThemeFontHandle;
         IFontHandle? weekFont = SERVICES.frdata.IsLongDisplay ? WeekFontHandle : ShortWeekFontHandle;
-
         if (isOldWeek) ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0f, 0f, 1f));
-
         if (themeFont != null) themeFont.Push();
         Vector2 themeSize = ImGui.CalcTextSize(weeklyTheme);
         ImGui.SetCursorPosX((_windowSize.X - themeSize.X) / 2);
         ImGui.SetCursorPosY(SERVICES.frdata.IsLongDisplay ? 15f : 35f);
         ImGui.Text(weeklyTheme);
         if (themeFont != null) themeFont.Pop();
-
         if (weekFont != null) weekFont.Push();
         Vector2 weekSize = ImGui.CalcTextSize(weekText);
         ImGui.SetCursorPosX((_windowSize.X - weekSize.X) / 2);
@@ -175,7 +155,6 @@ public class DisplayWindow : Window, IDisposable
         Vector2 windowSize = ImGui.GetWindowSize();
         Vector2 padding = ImGui.GetStyle().WindowPadding;
         Vector2 size = new Vector2(100f, 100f);
-
         if (CauldronTexture != null)
         {
             ImGui.SetCursorPos(new Vector2(windowSize.X - size.X, 30));
@@ -183,7 +162,6 @@ public class DisplayWindow : Window, IDisposable
             if (ImGui.IsItemHovered()) ImGui.SetTooltip("Brew Donations (Donate to help)");
             if (ImGui.IsItemClicked()) Dalamud.Utility.Util.OpenLink("https://ko-fi.com/theredheadedwitch");
         }
-
         if (AboutTexture != null)
         {
             Vector2 aboutSize = new Vector2(size.X / 2, size.Y / 2);
@@ -197,7 +175,6 @@ public class DisplayWindow : Window, IDisposable
         }
         else
             LOG.Error("AboutTexture is null");
-
         IDalamudTextureWrap? SwitchTexture = SERVICES.frdata.IsLongDisplay ? ShortTexture : LongTexture;
         if (SwitchTexture != null)
         {
@@ -219,7 +196,6 @@ public class DisplayWindow : Window, IDisposable
         uint TotalSlot = 0, TotalDye = 0, GrandTotal = 0;
         float contentStart = 130;
         float tableWidth = slotWidth + themeWidth + (pointsWidth * 3) + (ImGui.GetStyle().ItemSpacing.X * 4) + 5;
-
         if (ImGui.BeginTable("ShortTable", 5, ImGuiTableFlags.Borders | ImGuiTableFlags.SizingFixedFit, new Vector2(tableWidth, 0)))
         {
             ImGui.TableSetupColumn("Slot", ImGuiTableColumnFlags.WidthFixed, slotWidth);
@@ -242,7 +218,6 @@ public class DisplayWindow : Window, IDisposable
                     "Boots" => SERVICES.frdata.BootsDye,
                     _ => null
                 };
-
                 string dyeText = "";
                 Vector4 color = Vector4.One;
                 if (dyeId != null && dyeId != 0 && SERVICES.StainTable.TryGetValue(dyeId.Value, out (string Name, uint ItemId, uint IconId) stain))
@@ -250,7 +225,6 @@ public class DisplayWindow : Window, IDisposable
                     dyeText = " (" + stain.Name + ")";
                     color = GetIconColor(stain.IconId);
                 }
-
                 Vector2 textSize = ImGui.CalcTextSize(slot + dyeText);
                 float offsetX = (ImGui.GetColumnWidth() - textSize.X) / 2;
                 ImGui.SetCursorPosX(ImGui.GetCursorPosX() + offsetX);
@@ -262,7 +236,6 @@ public class DisplayWindow : Window, IDisposable
                     ImGui.TextUnformatted(dyeText);
                     ImGui.PopStyleColor();
                 }
-
                 ImGui.TableNextColumn();
                 string themeName = slot switch
                 {
@@ -279,7 +252,7 @@ public class DisplayWindow : Window, IDisposable
                     "LeftRing" => SERVICES.frdata.LeftRingThemeName,
                     _ => ""
                 };
-                TableCellTheme(themeName);
+                TableCellTheme(slot, themeName);
                 ImGui.TableNextColumn();
                 uint slotPoints = (uint)CalculateSlotPoints(slot);
                 TableCellCenteredText(slotPoints.ToString());
@@ -290,17 +263,12 @@ public class DisplayWindow : Window, IDisposable
                     dyePoints = (uint)(CalculateDyePoints(slot) ?? 0);
                 TableCellCenteredText(dyePoints > 0 ? dyePoints.ToString() : "");
                 TotalDye += dyePoints;
-
-                // Total column
                 ImGui.TableNextColumn();
                 uint totalPoints = slotPoints + dyePoints;
                 TableCellCenteredText(totalPoints.ToString());
                 GrandTotal += totalPoints;
-
                 ImGui.TableNextRow();
             }
-
-            // Totals row
             ImGui.TableNextColumn();
             TableCellCenteredText("\nTotals");
             ImGui.TableNextColumn();
@@ -320,10 +288,8 @@ public class DisplayWindow : Window, IDisposable
             ImGui.PushStyleColor(ImGuiCol.Text, color2);
             TableCellCenteredText("\n" + GrandTotal.ToString());
             ImGui.PopStyleColor();
-
             ImGui.EndTable();
         }
-
         float contentEnd = ImGui.GetCursorPosY();
         return (tableWidth, contentEnd - contentStart);
     }
@@ -349,16 +315,11 @@ public class DisplayWindow : Window, IDisposable
             ImGui.TableSetupColumn("Total\nPoints", ImGuiTableColumnFlags.WidthFixed, pointsWidth);
             ImGui.TableSetupColumn("Max\nPoints", ImGuiTableColumnFlags.WidthFixed, pointsWidth);
             DrawCenteredHeaders("Slot", "Dyes", "Theme", "Gear", "Item Dye", "Item Dye", "Slot\nPoints", "Dye\nPoints", "Total\nPoints", "Max\nPoints");
-
             foreach (string slot in SERVICES.FRSlots)
             {
                 ImGui.TableNextRow();
-
-                // Slot
                 ImGui.TableNextColumn();
                 TableCellCenteredText(slot);
-
-                // Dyes
                 ImGui.TableNextColumn();
                 uint? dyeId = slot switch
                 {
@@ -380,8 +341,6 @@ public class DisplayWindow : Window, IDisposable
                     TableCellCenteredText(dyeText);
                     ImGui.PopStyleColor();
                 }
-
-                // Theme
                 ImGui.TableNextColumn();
                 string themeName = slot switch
                 {
@@ -398,14 +357,9 @@ public class DisplayWindow : Window, IDisposable
                     "LeftRing" => SERVICES.frdata.LeftRingThemeName,
                     _ => ""
                 };
-                TableCellTheme(themeName);
-//                TableCellCenteredText(themeName);
-
-                // Gear
+                TableCellTheme(slot, themeName);
                 ImGui.TableNextColumn();
                 TableCellCenteredText(EquippedGearService.CurrentEquippedGear[slot].Name ?? "");
-
-                // Item Dye 1
                 ImGui.TableNextColumn();
                 EquippedItemData gear = EquippedGearService.CurrentEquippedGear[slot];
                 string dyeText1 = "";
@@ -418,8 +372,6 @@ public class DisplayWindow : Window, IDisposable
                 ImGui.PushStyleColor(ImGuiCol.Text, color1);
                 TableCellCenteredText(dyeText1);
                 ImGui.PopStyleColor();
-
-                // Item Dye 2
                 ImGui.TableNextColumn();
                 string dyeText2 = "";
                 Vector4 color2 = Vector4.One;
@@ -431,37 +383,25 @@ public class DisplayWindow : Window, IDisposable
                 ImGui.PushStyleColor(ImGuiCol.Text, color2);
                 TableCellCenteredText(dyeText2);
                 ImGui.PopStyleColor();
-
-                // Slot Points
                 ImGui.TableNextColumn();
                 uint slotPoints = (uint)CalculateSlotPoints(slot);
                 TableCellCenteredText(slotPoints.ToString());
                 TotalSlot += slotPoints;
-
-                // Dye Points
                 ImGui.TableNextColumn();
                 uint dyePoints = 0;
                 if (slot != "Earrings" && slot != "Necklace" && slot != "Bracelet" && slot != "RightRing" && slot != "LeftRing")
-                {
                     dyePoints = (uint)(CalculateDyePoints(slot) ?? 0);
-                }
                 TableCellCenteredText(dyePoints.ToString());
                 TotalDye += dyePoints;
-
-                // Total Points
                 ImGui.TableNextColumn();
                 uint totalPoints = slotPoints + dyePoints;
                 TableCellCenteredText(totalPoints.ToString());
                 TotalPoints += totalPoints;
-
-                // Max Points
                 ImGui.TableNextColumn();
                 uint maxPoints = SlotMax.ContainsKey(slot) ? SlotMax[slot] : 0;
                 TableCellCenteredText(maxPoints.ToString());
                 MaxPoints += maxPoints;
             }
-
-            // Totals row
             ImGui.TableNextRow();
             ImGui.TableNextColumn();
             TableCellCenteredText("\nTotals");
@@ -480,18 +420,15 @@ public class DisplayWindow : Window, IDisposable
             ImGui.TableNextColumn();
             TableCellCenteredText("\n" + TotalDye.ToString());
             ImGui.TableNextColumn();
-
             Vector4 color3 = new Vector4();
             if (TotalPoints < 80) color3 = new Vector4(1.0f, 0.0f, 0.0f, 1.0f);
             else if (TotalPoints >= 80 && TotalPoints < 100) color3 = new Vector4(0.0f, 1.0f, 0.0f, 1.0f);
             else color3 = new Vector4(1.0f, 0.843f, 0.0f, 1.0f);
-
             ImGui.PushStyleColor(ImGuiCol.Text, color3);
             TableCellCenteredText("\n" + TotalPoints.ToString());
             ImGui.PopStyleColor();
             ImGui.TableNextColumn();
             TableCellCenteredText("\n" + MaxPoints.ToString());
-
             ImGui.EndTable();
         }
         float contentEnd = ImGui.GetCursorPosY();
@@ -584,22 +521,22 @@ public class DisplayWindow : Window, IDisposable
         }
     }
 
-    void TableCellTheme(string themeName)
+    void TableCellTheme(string slot, string theme)
     {
-        Vector2 textSize = ImGui.CalcTextSize(themeName);
+        Vector2 textSize = ImGui.CalcTextSize(theme);
         Vector2 buttonSize = new Vector2(textSize.X + 4, textSize.Y + 4);
         ImGui.SetCursorPosX(ImGui.GetCursorPosX() + (ImGui.GetColumnWidth() - buttonSize.X) * 0.5f);
-        string buttonId = "##" + themeName + "_btn";
+        string buttonId = "##" + slot + "_btn";
         if (ImGui.InvisibleButton(buttonId, buttonSize))
         {
             cacheThemeWindowSize = null;
-            SelectedTheme = themeName;
-            LOG.Debug("Button pressed for theme: " + themeName);
+            uSlot = slot;
+            uTheme = theme;
         }
         ImDrawListPtr drawList = ImGui.GetWindowDrawList();
         uint blueColor = ImGui.ColorConvertFloat4ToU32(new Vector4(0f, 0.5f, 1f, 1f));
         Vector2 pos = ImGui.GetItemRectMin();
-        drawList.AddText(pos, blueColor, themeName);
+        drawList.AddText(pos, blueColor, theme);
         drawList.AddLine(new Vector2(pos.X, pos.Y + textSize.Y + 1), new Vector2(pos.X + textSize.X, pos.Y + textSize.Y + 1), blueColor, 1f);
     }
 
@@ -607,12 +544,11 @@ public class DisplayWindow : Window, IDisposable
     {
         if (!cacheThemeWindowSize.HasValue)
         {
-            DisplayData.TryGetValue(SelectedTheme!, out List<DisplayItem>? items);
-            LOG.Debug($"item count: {items?.Count}");
+            DisplayData.TryGetValue(uSlot!, out List<DisplayItem>? items);
             if (items == null) return;
             cacheItems = items;
             ImGui.SetWindowFontScale(2.5f);
-            float TitleHeight = ImGui.CalcTextSize(SelectedTheme).Y;
+            float TitleHeight = ImGui.CalcTextSize(uTheme).Y;
             ImGui.SetWindowFontScale(1f);
             float sep = 1.0f + 2 * ImGui.GetStyle().FramePadding.Y;
             float spac = ImGui.GetStyle().ItemSpacing.Y;
@@ -623,10 +559,10 @@ public class DisplayWindow : Window, IDisposable
         ImGui.SetNextWindowSize(cacheThemeWindowSize.Value, ImGuiCond.Always);
         ImGui.Begin($"Fashion Report Theme Items", ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoResize);
         ImGui.SetWindowFontScale(2.5f);
-        Vector2 themeTextSize = ImGui.CalcTextSize(SelectedTheme);
+        Vector2 themeTextSize = ImGui.CalcTextSize(uTheme);
         float centerPos = (ImGui.GetContentRegionAvail().X - themeTextSize.X) * 0.5f;
         ImGui.SetCursorPosX(ImGui.GetCursorPosX() + centerPos);
-        ImGui.Text(SelectedTheme);
+        ImGui.Text(uTheme);
         ImGui.SetWindowFontScale(1f);
         ImGui.Spacing();
         ImGui.Separator();
@@ -650,7 +586,7 @@ public class DisplayWindow : Window, IDisposable
         ImGui.SetCursorPos(new Vector2(buttonX, 30));
         if (ImGui.Button("Close"))
         {
-            SelectedTheme = null;
+            uSlot = null;
             cacheThemeWindowSize = null;
             cacheItems = null;
             cacheScrollableHeight = null;

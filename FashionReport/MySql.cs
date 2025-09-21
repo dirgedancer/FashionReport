@@ -45,38 +45,6 @@ internal static class MySql
         return new MySqlConnection(_connectionString);
     }
 
-    internal static DateTime? GetLastUpdate(uint week)
-    {
-        try
-        {
-            using MySqlConnection conn = GetConnection();
-            conn.Open();
-            using MySqlCommand cmd = new("SELECT last_update FROM fashionreport_status WHERE week = @week", conn);
-            cmd.Parameters.AddWithValue("@week", week);
-            object? result = cmd.ExecuteScalar();
-            return result != null ? Convert.ToDateTime(result) : null;
-        }
-        catch (Exception ex) { LOG.Error($"MySql.GetLastUpdate: {ex.Message}"); return null; }
-    }
-
-    internal static void InsertOrUpdateStatus(uint week, DateTime lastUpdate, string reportType)
-    {
-        try
-        {
-            using MySqlConnection conn = GetConnection();
-            conn.Open();
-            using MySqlCommand cmd = new(
-                @"INSERT INTO fashionreport_status (week, last_update, report_type) 
-                     VALUES (@week, @lastUpdate, @reportType)
-                     ON DUPLICATE KEY UPDATE last_update = @lastUpdate, report_type = @reportType;", conn);
-            cmd.Parameters.AddWithValue("@week", week);
-            cmd.Parameters.AddWithValue("@lastUpdate", lastUpdate);
-            cmd.Parameters.AddWithValue("@reportType", reportType);
-            cmd.ExecuteNonQuery();
-        }
-        catch (Exception ex) { LOG.Error($"MySql.InsertOrUpdateStatus: {ex.Message}"); }
-    }
-
     internal static async Task InsertFashionReport(uint week, uint? weeklyTheme, uint? weapon, uint? head, uint? body, uint? gloves, uint? legs, uint? boots, uint? earrings, uint? necklace, uint? bracelet, uint? rightRing, uint? leftRing, ulong date, uint? weaponDye, uint? headDye, uint? bodyDye, uint? glovesDye, uint? legsDye, uint? bootsDye)
     {
         try
@@ -235,11 +203,33 @@ internal static class MySql
 
     internal static int GetDiscoveredDyeCount(uint week)
     {
-        using MySqlConnection conn = GetConnection();
-        conn.Open();
-        using MySqlCommand cmd = new("SELECT COUNT(DISTINCT dye_index) FROM fashionreport_dye WHERE Week = @week", conn);
-        cmd.Parameters.AddWithValue("@week", week);
-        return Convert.ToInt32(cmd.ExecuteScalar()!);
+        try
+        {
+            using MySqlConnection conn = GetConnection();
+            conn.Open();
+            using MySqlCommand cmd = new MySqlCommand(
+                @"SELECT WeaponDye, HeadDye, BodyDye, GlovesDye, LegsDye, BootsDye
+              FROM fashionreportdata
+              WHERE Week = @week
+              LIMIT 1", conn);
+            cmd.Parameters.AddWithValue("@week", week);
+            using MySqlDataReader reader = cmd.ExecuteReader();
+            if (!reader.Read()) return 0;
+
+            int count = 0;
+            count += reader["WeaponDye"] != DBNull.Value ? 1 : 0;
+            count += reader["HeadDye"] != DBNull.Value ? 1 : 0;
+            count += reader["BodyDye"] != DBNull.Value ? 1 : 0;
+            count += reader["GlovesDye"] != DBNull.Value ? 1 : 0;
+            count += reader["LegsDye"] != DBNull.Value ? 1 : 0;
+            count += reader["BootsDye"] != DBNull.Value ? 1 : 0;
+            return count;
+        }
+        catch (Exception ex)
+        {
+            LOG.Error($"MySql.GetDiscoveredDyeCount: {ex.Message}");
+            return 0;
+        }
     }
 
     internal static List<uint> GetItemsForSlot(uint themeId, int slotId)

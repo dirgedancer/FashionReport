@@ -3,11 +3,12 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Dalamud.Configuration;
 using FashionReport;
+using Microsoft.Extensions.DependencyInjection;
 
 [Serializable]
 public class FashionReportDataStorage : IPluginConfiguration
 {
-    public int Version { get; set; } = 1;
+    public int Version { get; set; }
     public bool IsLongDisplay { get; set; } = true;
 
     public uint Week { get; set; }
@@ -68,9 +69,71 @@ public class FashionReportDataStorage : IPluginConfiguration
 
     public async Task SaveToDatabase()
     {
-        if (MySql.IsWeekUpdated(Week)) { LOG.Info($"FashionReport week {Week} already updated."); return; }
-        await MySql.InsertFashionReport(Week, WeeklyTheme, Weapon, Head, Body, Gloves, Legs, Boots, Earrings, Necklace, Bracelet, RightRing, LeftRing, Timestamp, WeaponDye, HeadDye, BodyDye, GlovesDye, LegsDye, BootsDye);
+        if (await GoogleSheetData.IsWeekUpdated(Week)) { LOG.Info($"FashionReport week {Week} already updated."); return; }
+        await GoogleSheetWriter.InsertFashionReport(Week, WeeklyTheme, Weapon, Head, Body, Gloves, Legs, Boots, Earrings, Necklace, Bracelet, RightRing, LeftRing, (ulong)new DateTimeOffset(new DateTime(2018, 1, 26, 8, 0, 0, DateTimeKind.Utc).AddDays(((DateTime.UtcNow - new DateTime(2018, 1, 23, 8, 0, 0, DateTimeKind.Utc)).TotalDays / 7) * 7)).ToUnixTimeSeconds(), WeaponDye, HeadDye, BodyDye, GlovesDye, LegsDye, BootsDye);
         LOG.Info($"FashionReport week {Week} has been updated to the database.");
+    }
+
+    public async Task ProcessFromId()
+    {
+        WeeklyThemeName = WeeklyTheme != 0 ? SERVICES.AllWeeklyFashionThemes.Find(x => x.RowId == WeeklyTheme).Name.ToString() : string.Empty;
+        WeaponThemeName = Weapon != null ? SERVICES.AllFashionThemeCategories.Find(x => x.RowId == Weapon).Name.ToString() : string.Empty;
+        HeadThemeName = Head != null ? SERVICES.AllFashionThemeCategories.Find(x => x.RowId == Head).Name.ToString() : string.Empty;
+        BodyThemeName = Body != null ? SERVICES.AllFashionThemeCategories.Find(x => x.RowId == Body).Name.ToString() : string.Empty;
+        GlovesThemeName = Gloves != null ? SERVICES.AllFashionThemeCategories.Find(x => x.RowId == Gloves).Name.ToString() : string.Empty;
+        LegsThemeName = Legs != null ? SERVICES.AllFashionThemeCategories.Find(x => x.RowId == Legs).Name.ToString() : string.Empty;
+        BootsThemeName = Boots != null ? SERVICES.AllFashionThemeCategories.Find(x => x.RowId == Boots).Name.ToString() : string.Empty;
+        EarringsThemeName = Earrings != null ? SERVICES.AllFashionThemeCategories.Find(x => x.RowId == Earrings).Name.ToString() : string.Empty;
+        NecklaceThemeName = Necklace != null ? SERVICES.AllFashionThemeCategories.Find(x => x.RowId == Necklace).Name.ToString() : string.Empty;
+        BraceletThemeName = Bracelet != null ? SERVICES.AllFashionThemeCategories.Find(x => x.RowId == Bracelet).Name.ToString() : string.Empty;
+        RightRingThemeName = RightRing != null ? SERVICES.AllFashionThemeCategories.Find(x => x.RowId == RightRing).Name.ToString() : string.Empty;
+        LeftRingThemeName = LeftRing != null ? SERVICES.AllFashionThemeCategories.Find(x => x.RowId == LeftRing).Name.ToString() : string.Empty;
+        WeaponDyeName = WeaponDye != null ? SERVICES.StainTable.FirstOrDefault(x => x.Key == WeaponDye).Value.Name.ToString() : string.Empty;
+        HeadDyeName = HeadDye != null ? SERVICES.StainTable.FirstOrDefault(x => x.Key == HeadDye).Value.Name.ToString() : string.Empty;
+        BodyDyeName = BodyDye != null ? SERVICES.StainTable.FirstOrDefault(x => x.Key == BodyDye).Value.Name.ToString() : string.Empty;
+        GlovesDyeName = GlovesDye != null ? SERVICES.StainTable.FirstOrDefault(x => x.Key == GlovesDye).Value.Name.ToString() : string.Empty;
+        LegsDyeName = LegsDye != null ? SERVICES.StainTable.FirstOrDefault(x => x.Key == LegsDye).Value.Name.ToString() : string.Empty;
+        BootsDyeName = BootsDye != null ? SERVICES.StainTable.FirstOrDefault(x => x.Key == BootsDye).Value.Name.ToString() : string.Empty;
+        await GetData();
+    }
+
+    internal async Task ProcessorFromString()
+    {
+        WeeklyTheme = !string.IsNullOrEmpty(WeeklyThemeName) ? SERVICES.AllWeeklyFashionThemes.Find(x => x.Name == WeeklyThemeName).RowId : 0;
+        Weapon = !string.IsNullOrEmpty(WeaponThemeName) ? SERVICES.AllFashionThemeCategories.Find(x => x.Name == WeaponThemeName).RowId : (uint?)null;
+        Head = !string.IsNullOrEmpty(HeadThemeName) ? SERVICES.AllFashionThemeCategories.Find(x => x.Name == HeadThemeName).RowId : (uint?)null;
+        Body = !string.IsNullOrEmpty(BodyThemeName) ? SERVICES.AllFashionThemeCategories.Find(x => x.Name == BodyThemeName).RowId : (uint?)null;
+        Gloves = !string.IsNullOrEmpty(GlovesThemeName) ? SERVICES.AllFashionThemeCategories.Find(x => x.Name == GlovesThemeName).RowId : (uint?)null;
+        Legs = !string.IsNullOrEmpty(LegsThemeName) ? SERVICES.AllFashionThemeCategories.Find(x => x.Name == LegsThemeName).RowId : (uint?)null;
+        Boots = !string.IsNullOrEmpty(BootsThemeName) ? SERVICES.AllFashionThemeCategories.Find(x => x.Name == BootsThemeName).RowId : (uint?)null;
+        Earrings = !string.IsNullOrEmpty(EarringsThemeName) ? SERVICES.AllFashionThemeCategories.Find(x => x.Name == EarringsThemeName).RowId : (uint?)null;
+        Necklace = !string.IsNullOrEmpty(NecklaceThemeName) ? SERVICES.AllFashionThemeCategories.Find(x => x.Name == NecklaceThemeName).RowId : (uint?)null;
+        Bracelet = !string.IsNullOrEmpty(BraceletThemeName) ? SERVICES.AllFashionThemeCategories.Find(x => x.Name == BraceletThemeName).RowId : (uint?)null;
+        RightRing = !string.IsNullOrEmpty(RightRingThemeName) ? SERVICES.AllFashionThemeCategories.Find(x => x.Name == RightRingThemeName).RowId : (uint?)null;
+        LeftRing = !string.IsNullOrEmpty(LeftRingThemeName) ? SERVICES.AllFashionThemeCategories.Find(x => x.Name == LeftRingThemeName).RowId : (uint?)null;
+        WeaponDye = !string.IsNullOrEmpty(WeaponDyeName) ? SERVICES.StainTable.FirstOrDefault(x => x.Value.Name.ToString() == WeaponDyeName).Key : (uint?)null;
+        HeadDye = !string.IsNullOrEmpty(HeadDyeName) ? SERVICES.StainTable.FirstOrDefault(x => x.Value.Name.ToString() == HeadDyeName).Key : (uint?)null;
+        BodyDye = !string.IsNullOrEmpty(BodyDyeName) ? SERVICES.StainTable.FirstOrDefault(x => x.Value.Name.ToString() == BodyDyeName).Key : (uint?)null;
+        GlovesDye = !string.IsNullOrEmpty(GlovesDyeName) ? SERVICES.StainTable.FirstOrDefault(x => x.Value.Name.ToString() == GlovesDyeName).Key : (uint?)null;
+        LegsDye = !string.IsNullOrEmpty(LegsDyeName) ? SERVICES.StainTable.FirstOrDefault(x => x.Value.Name.ToString() == LegsDyeName).Key : (uint?)null;
+        BootsDye = !string.IsNullOrEmpty(BootsDyeName) ? SERVICES.StainTable.FirstOrDefault(x => x.Value.Name.ToString() == BootsDyeName).Key : (uint?)null;
+        await GetData();
+    }
+
+    public async Task GetData()
+    {
+        WeaponData = Weapon != null ? await GoogleSheetData.GetThemeItemsForSlot((uint)Weapon, 1) : null;
+        HeadData = Head != null ? await GoogleSheetData.GetThemeItemsForSlot((uint)Head, 3) : null;
+        BodyData = Body != null ? await GoogleSheetData.GetThemeItemsForSlot((uint)Body, 4) : null;
+        GlovesData = Gloves != null ? await GoogleSheetData.GetThemeItemsForSlot((uint)Gloves, 5) : null;
+        LegsData = Legs != null ? await GoogleSheetData.GetThemeItemsForSlot((uint)Legs, 7) : null;
+        BootsData = Boots != null ? await GoogleSheetData.GetThemeItemsForSlot((uint)Boots, 8) : null;
+        EarringsData = Earrings != null ? await GoogleSheetData.GetThemeItemsForSlot((uint)Earrings, 9) : null;
+        NecklaceData = Necklace != null ? await GoogleSheetData.GetThemeItemsForSlot((uint)Necklace, 10) : null;
+        BraceletData = Bracelet != null ? await GoogleSheetData.GetThemeItemsForSlot((uint)Bracelet, 11) : null;
+        RightRingData = RightRing != null ? await GoogleSheetData.GetThemeItemsForSlot((uint)RightRing, 12) : null;
+        LeftRingData = LeftRing != null ? await GoogleSheetData.GetThemeItemsForSlot((uint)LeftRing, 12) : null;
+        Save();
     }
 
     public async Task ReadAddonData(FashionCheck fashionCheck)
@@ -80,11 +143,9 @@ public class FashionReportDataStorage : IPluginConfiguration
         if (fashionCheck.AtkCount < 124) { LOG.Warning("Timed out waiting for FashionCheck AtkValues to load."); return; }
 
         LOG.Debug("Reading FashionCheck addon data...");
-
         Week = FashionReportPoller.CurrentWeek;
         WeeklyTheme = SERVICES.AllWeeklyFashionThemes.FirstOrDefault(x => x.Name == fashionCheck.WeeklyTheme).RowId;
         WeeklyThemeName = SERVICES.AllWeeklyFashionThemes.FirstOrDefault(x => x.RowId == WeeklyTheme).Name.ToString() ?? string.Empty;
-
         WeaponThemeName = fashionCheck.WeaponTheme;
         HeadThemeName = fashionCheck.HeadTheme;
         BodyThemeName = fashionCheck.BodyTheme;
@@ -96,49 +157,11 @@ public class FashionReportDataStorage : IPluginConfiguration
         BraceletThemeName = fashionCheck.WristTheme;
         RightRingThemeName = fashionCheck.RightRingTheme;
         LeftRingThemeName = fashionCheck.LeftRingTheme;
-
-        Weapon = SERVICES.AllFashionThemeCategories.FirstOrDefault(x => x.Name.ToString() == WeaponThemeName).RowId;
-        Head = SERVICES.AllFashionThemeCategories.FirstOrDefault(x => x.Name.ToString() == HeadThemeName).RowId;
-        Body = SERVICES.AllFashionThemeCategories.FirstOrDefault(x => x.Name.ToString() == BodyThemeName).RowId;
-        Gloves = SERVICES.AllFashionThemeCategories.FirstOrDefault(x => x.Name.ToString() == GlovesThemeName).RowId;
-        Legs = SERVICES.AllFashionThemeCategories.FirstOrDefault(x => x.Name.ToString() == LegsThemeName).RowId;
-        Boots = SERVICES.AllFashionThemeCategories.FirstOrDefault(x => x.Name.ToString() == BootsThemeName).RowId;
-        Earrings = SERVICES.AllFashionThemeCategories.FirstOrDefault(x => x.Name.ToString() == EarringsThemeName).RowId;
-        Necklace = SERVICES.AllFashionThemeCategories.FirstOrDefault(x => x.Name.ToString() == NecklaceThemeName).RowId;
-        Bracelet = SERVICES.AllFashionThemeCategories.FirstOrDefault(x => x.Name.ToString() == BraceletThemeName).RowId;
-        RightRing = SERVICES.AllFashionThemeCategories.FirstOrDefault(x => x.Name.ToString() == RightRingThemeName).RowId;
-        LeftRing = SERVICES.AllFashionThemeCategories.FirstOrDefault(x => x.Name.ToString() == LeftRingThemeName).RowId;
-
-
-        WeaponDye = fashionCheck.WeaponShade1 != 0 ? fashionCheck.WeaponShade1 : null;
-        HeadDye = fashionCheck.HeadShade1 != 0 ? fashionCheck.HeadShade1 : null;
-        BodyDye = fashionCheck.BodyShade1 != 0 ? fashionCheck.BodyShade1 : null;
-        GlovesDye = fashionCheck.HandsShade1 != 0 ? fashionCheck.HandsShade1 : null;
-        LegsDye = fashionCheck.LegsShade1 != 0 ? fashionCheck.LegsShade1 : null;
-        BootsDye = fashionCheck.FeetShade1 != 0 ? fashionCheck.FeetShade1 : null;
-
-        WeaponDyeName = WeaponDye != null ? SERVICES.AllStains.FirstOrDefault(x => x.RowId == WeaponDye).Name.ToString() : string.Empty;
-        HeadDyeName = HeadDye != null ? SERVICES.AllStains.FirstOrDefault(x => x.RowId == HeadDye).Name.ToString() : string.Empty;
-        BodyDyeName = BodyDye != null ? SERVICES.AllStains.FirstOrDefault(x => x.RowId == BodyDye).Name.ToString() : string.Empty;
-        GlovesDyeName = GlovesDye != null ? SERVICES.AllStains.FirstOrDefault(x => x.RowId == GlovesDye).Name.ToString() : string.Empty;
-        LegsDyeName = LegsDye != null ? SERVICES.AllStains.FirstOrDefault(x => x.RowId == LegsDye).Name.ToString() : string.Empty;
-        BootsDyeName = BootsDye != null ? SERVICES.AllStains.FirstOrDefault(x => x.RowId == BootsDye).Name.ToString() : string.Empty;
-
-        WeaponData = Weapon != null ? MySql.GetItemsForSlot(Weapon.Value, 1) : null;
-        HeadData = Head != null ? MySql.GetItemsForSlot(Head.Value, 3) : null;
-        BodyData = Body != null ? MySql.GetItemsForSlot(Body.Value, 4) : null;
-        GlovesData = Gloves != null ? MySql.GetItemsForSlot(Gloves.Value, 5) : null;
-        LegsData = Legs != null ? MySql.GetItemsForSlot(Legs.Value, 7) : null;
-        BootsData = Boots != null ? MySql.GetItemsForSlot(Boots.Value, 8) : null;
-        EarringsData = Earrings != null ? MySql.GetItemsForSlot(Earrings.Value, 9) : null;
-        NecklaceData = Necklace != null ? MySql.GetItemsForSlot(Necklace.Value, 10) : null;
-        BraceletData = Bracelet != null ? MySql.GetItemsForSlot(Bracelet.Value, 11) : null;
-        RightRingData = RightRing != null ? MySql.GetItemsForSlot(RightRing.Value, 12) : null;
-        LeftRingData = LeftRing != null ? MySql.GetItemsForSlot(LeftRing.Value, 12) : null;
-
+        await ProcessorFromString();
+        WeaponDye = HeadDye = BodyDye = GlovesDye = LegsDye = BootsDye = null;
+        WeaponDyeName = HeadDyeName = BootsDyeName = GlovesDyeName = LegsDyeName = BootsDyeName = string.Empty;
         Timestamp = (ulong)new DateTimeOffset(FashionReportPoller.GetFridayOfDyeWeek(Week)).ToUnixTimeSeconds();
     }
-
-    public static FashionReportDataStorage LoadData() => SERVICES.Interface.GetPluginConfig() as FashionReportDataStorage ?? new FashionReportDataStorage();
-    public void SaveData() => SERVICES.Interface.SavePluginConfig(this);
+    public static FashionReportDataStorage Load() => SERVICES.Interface.GetPluginConfig() as FashionReportDataStorage ?? new FashionReportDataStorage();
+    public void Save() => SERVICES.Interface.SavePluginConfig(this);
 }

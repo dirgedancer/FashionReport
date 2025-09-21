@@ -26,7 +26,7 @@ public sealed class FASHIONREPORT : IDalamudPlugin
     public FASHIONREPORT(IDalamudPluginInterface pluginInterface)
     {
         pluginInterface.Create<SERVICES>();
-        Task.Run(async () => await MySql.Initialize()).Wait();
+        GoogleSheetData.Initialize();
         SERVICES.CommandManager.AddHandler("/fr", new CommandInfo(OnFCCommand) { HelpMessage = "Open Fashion Report table for testing!" });
         SERVICES.CommandManager.AddHandler("/fashionreport", new CommandInfo(OnCommand) { HelpMessage = "Fashion Report calculator!" });
         SERVICES.Interface.UiBuilder.Draw += DrawUI;
@@ -48,16 +48,12 @@ public sealed class FASHIONREPORT : IDalamudPlugin
             }
             return (stain.Name.ToString(), itemId, iconId);
         });
-        SERVICES.frdata = FashionReportDataStorage.LoadData();
-        FashionReportPoller.Initialize();
+        SERVICES.frdata = FashionReportDataStorage.Load();
         EquippedGearService.Initialize();
         SERVICES.AddonLifecycle.RegisterListener(AddonEvent.PostSetup, "FashionCheck", OnFashionCheck);
-        FashionReportDataStorage temp = MySql.GetLatestReport() ?? new FashionReportDataStorage();
-        if (SERVICES.frdata.Week < temp.Week)
-            SERVICES.frdata = temp;
-        SERVICES.frdata.SaveData();
-        WindowSystem.AddWindow(DisplayWindow);
         WindowSystem.AddWindow(AboutWindow);
+        WindowSystem.AddWindow(DisplayWindow);
+        FashionReportPoller.Initialize();
     }
 
     public void Dispose()
@@ -97,34 +93,47 @@ public sealed class FASHIONREPORT : IDalamudPlugin
 
     private static async void OnFashionCheck(AddonEvent type, AddonArgs args)
     {
-        await Task.Delay(500);
-        if (args.Addon == IntPtr.Zero) return;
         try
         {
             LOG.Debug("OnFashionCheck triggered.");
             FashionCheck fashionCheck = new(await GetAddonSafe("FashionCheck"));
             if (fashionCheck.IsNull || !fashionCheck.IsReady)
             {
-                LOG.Warning("FashionCheck addon is not ready.");
-                nint retry = await GetAddonSafe("FashionCheck");
-                if (retry == nint.Zero) { LOG.Warning("Failed to get FashionCheck addon on retry."); return; }
+                fashionCheck = new(await GetAddonSafe("FashionCheck"));
+                if (fashionCheck.IsNull) { LOG.Warning("FashionCheck addon failure."); return; }
             }
+            while (string.IsNullOrEmpty(fashionCheck.TryGetAtkValue<string>(130)))
+                await Task.Delay(100);
             uint oldWeek = SERVICES.frdata.Week;
             FashionReportDataStorage temp = new();
-            await temp.ReadAddonData(fashionCheck);
-            if (SERVICES.frdata != temp) SERVICES.frdata = temp;
-            if (fashionCheck.WeeklyTheme == SERVICES.frdata.WeaponThemeName) return;
-            if ((SERVICES.frdata.Week != oldWeek || !MySql.IsWeekUpdated(SERVICES.frdata.Week)) && !FashionReportPoller.IsTuesdayComplete)
-            {
-                await temp.SaveToDatabase();
-                LOG.Info($"FashionCheck week {SERVICES.frdata.Week} updated in MySQL.");
-            }
-            SERVICES.frdata.SaveData();
+            LOG.Debug("Reading FashionCheck addon data...");
+            temp.Week = FashionReportPoller.CurrentWeek;
+            temp.WeeklyThemeName = fashionCheck.WeeklyTheme;
+            temp.WeaponThemeName = fashionCheck.WeaponTheme;
+            temp.HeadThemeName = fashionCheck.HeadTheme;
+            temp.BodyThemeName = fashionCheck.BodyTheme;
+            temp.GlovesThemeName = fashionCheck.HandsTheme;
+            temp.LegsThemeName = fashionCheck.LegsTheme;
+            temp.BootsThemeName = fashionCheck.FeetTheme;
+            temp.EarringsThemeName = fashionCheck.EarringsTheme;
+            temp.NecklaceThemeName = fashionCheck.NeckTheme;
+            temp.BraceletThemeName = fashionCheck.WristTheme;
+            temp.RightRingThemeName = fashionCheck.RightRingTheme;
+            temp.LeftRingThemeName = fashionCheck.LeftRingTheme;
+            await temp.ProcessorFromString();
+            if (SERVICES.frdata != temp)
+                SERVICES.frdata = temp;
+            if ((SERVICES.frdata.Week != oldWeek || !await GoogleSheetData.IsWeekUpdated(SERVICES.frdata.Week)) && !FashionReportPoller.IsTuesdayComplete)
+                _ = Task.Run(async () =>
+                {
+                    LOG.Debug("Saving to database ...");
+                    await temp.SaveToDatabase();
+                    LOG.Info($"FashionCheck week {SERVICES.frdata.Week} updated.");
+                });
             if (FashionReportPoller.IsFridayComplete) return;
-
-            if (fashionCheck.WeaponItemId == 0) return;
-            FashionCheckScoreGauge Gauge = new();
-
+            if (temp.Weapon == null) return;
+            nint g = await GetAddonSafe("FashionCheckScoreGauge", 10000, 100);
+            FashionCheckScoreGauge Gauge = new(g);
             DyeStruct dyeEntry = new()
             {
                 Score = Gauge.Score,
@@ -135,7 +144,6 @@ public sealed class FASHIONREPORT : IDalamudPlugin
                 WeaponTheme = SERVICES.AllFashionThemeCategories.First(x => x.Name == SERVICES.frdata.WeaponThemeName).RowId,
                 WeaponPicture = fashionCheck.WeaponPicture,
                 WeaponPictureInfo = fashionCheck.WeaponPictureInfo,
-
                 HeadItemId = fashionCheck.HeadItemId,
                 HeadGlamourId = fashionCheck.HeadGlamourId,
                 HeadDye1 = fashionCheck.HeadShade1 != 0 ? fashionCheck.HeadShade1 : null,
@@ -143,7 +151,6 @@ public sealed class FASHIONREPORT : IDalamudPlugin
                 HeadTheme = SERVICES.AllFashionThemeCategories.First(x => x.Name == SERVICES.frdata.HeadThemeName).RowId,
                 HeadPicture = fashionCheck.HeadPicture,
                 HeadPictureInfo = fashionCheck.HeadPictureInfo,
-
                 BodyItemId = fashionCheck.BodyItemId,
                 BodyGlamourId = fashionCheck.BodyGlamourId,
                 BodyDye1 = fashionCheck.BodyShade1 != 0 ? fashionCheck.BodyShade1 : null,
@@ -151,7 +158,6 @@ public sealed class FASHIONREPORT : IDalamudPlugin
                 BodyTheme = SERVICES.AllFashionThemeCategories.First(x => x.Name == SERVICES.frdata.BodyThemeName).RowId,
                 BodyPicture = fashionCheck.BodyPicture,
                 BodyPictureInfo = fashionCheck.BodyPictureInfo,
-
                 GlovesItemId = fashionCheck.HandsItemId,
                 GlovesGlamourId = fashionCheck.HandsGlamourId,
                 GlovesDye1 = fashionCheck.HandsShade1 != 0 ? fashionCheck.HandsShade1 : null,
@@ -159,7 +165,6 @@ public sealed class FASHIONREPORT : IDalamudPlugin
                 GlovesTheme = SERVICES.AllFashionThemeCategories.First(x => x.Name == SERVICES.frdata.GlovesThemeName).RowId,
                 GlovesPicture = fashionCheck.HandsPicture,
                 GlovesPictureInfo = fashionCheck.HandsPictureInfo,
-
                 LegsItemId = fashionCheck.LegsItemId,
                 LegsGlamourId = fashionCheck.LegsGlamourId,
                 LegsDye1 = fashionCheck.LegsShade1 != 0 ? fashionCheck.LegsShade1 : null,
@@ -167,7 +172,6 @@ public sealed class FASHIONREPORT : IDalamudPlugin
                 LegsTheme = SERVICES.AllFashionThemeCategories.First(x => x.Name == SERVICES.frdata.LegsThemeName).RowId,
                 LegsPicture = fashionCheck.LegsPicture,
                 LegsPictureInfo = fashionCheck.LegsPictureInfo,
-
                 BootsItemId = fashionCheck.FeetItemId,
                 BootsGlamourId = fashionCheck.FeetGlamourId,
                 BootsDye1 = fashionCheck.FeetShade1 != 0 ? fashionCheck.FeetShade1 : null,
@@ -175,39 +179,33 @@ public sealed class FASHIONREPORT : IDalamudPlugin
                 BootsTheme = SERVICES.AllFashionThemeCategories.First(x => x.Name == SERVICES.frdata.BootsThemeName).RowId,
                 BootsPicture = fashionCheck.FeetPicture,
                 BootsPictureInfo = fashionCheck.FeetPictureInfo,
-
                 EarringsItemId = fashionCheck.EarringsItemId,
                 EarringsGlamourId = fashionCheck.EarringsGlamourId,
                 EarringsTheme = SERVICES.AllFashionThemeCategories.First(x => x.Name == SERVICES.frdata.EarringsThemeName).RowId,
                 EarringsPicture = fashionCheck.EarringsPicture,
                 EarringsPictureInfo = fashionCheck.EarringsPictureInfo,
-
                 NecklaceItemId = fashionCheck.NeckItemId,
                 NecklaceGlamourId = fashionCheck.NeckGlamourId,
                 NecklaceTheme = SERVICES.AllFashionThemeCategories.First(x => x.Name == SERVICES.frdata.NecklaceThemeName).RowId,
                 NecklacePicture = fashionCheck.NeckPicture,
                 NecklacePictureInfo = fashionCheck.NeckPictureInfo,
-
                 BraceletItemId = fashionCheck.WristItemId,
                 BraceletGlamourId = fashionCheck.WristGlamourId,
                 BraceletTheme = SERVICES.AllFashionThemeCategories.First(x => x.Name == SERVICES.frdata.BraceletThemeName).RowId,
                 BraceletPicture = fashionCheck.WristPicture,
                 BraceletPictureInfo = fashionCheck.WristPictureInfo,
-
                 RightRingItemId = fashionCheck.RightRingItemId,
                 RightRingGlamourId = fashionCheck.RightRingGlamourId,
                 RightRingTheme = SERVICES.AllFashionThemeCategories.First(x => x.Name == SERVICES.frdata.RightRingThemeName).RowId,
                 RightRingPicture = fashionCheck.RightRingPicture,
                 RightRingPictureInfo = fashionCheck.RightRingPictureInfo,
-
                 LeftRingItemId = fashionCheck.LeftRingItemId,
                 LeftRingGlamourId = fashionCheck.LeftRingGlamourId,
                 LeftRingTheme = SERVICES.AllFashionThemeCategories.First(x => x.Name == SERVICES.frdata.LeftRingThemeName).RowId,
                 LeftRingPicture = fashionCheck.LeftRingPicture,
                 LeftRingPictureInfo = fashionCheck.LeftRingPictureInfo
             };
-
-            await MySql.InsertFashionReportDye(dyeEntry);
+            await GoogleSheetWriter.InsertFashionReportDye(dyeEntry);
         }
         catch (Exception ex) { LOG.Error($"Error in OnFashionCheck: {ex}"); }
     }
