@@ -15,44 +15,55 @@ using System.Text.Json.Serialization.Metadata;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using System.Globalization;
 using System.Runtime.CompilerServices;
-using Microsoft.Extensions.DependencyInjection;
 using Lumina.Excel;
 using Lumina.Excel.Sheets;
 
 
-namespace FashionReport;
+namespace FashionReportCalculator;
 
 internal static class GoogleSheetData
 {
     private static SheetsService? _service;
-    private static readonly string _spreadsheetId = "1RWNR3MeKq49wfGVEBGIhDMtrJL40uhbtzuZtIpUbVw8";
 
     internal static void Initialize()
     {
         if (_service != null) return;
-        using Stream? stream = typeof(GoogleSheetData).Assembly.GetManifestResourceStream("FashionReport.FashionReportSheet.json");
-        if (stream == null)
-            throw new InvalidOperationException("Embedded resource 'FashionReportSheet.json' not found.");
-        GoogleCredential credential = GoogleCredential.FromStream(stream).CreateScoped(SheetsService.Scope.Spreadsheets);
-        _service = new SheetsService(new BaseClientService.Initializer() {HttpClientInitializer = credential, ApplicationName = "FashionReportPlugin"});
+        string? credentialsJson = Environment.GetEnvironmentVariable("GOOGLESHEETSREADONLYKEY");
+        if (string.IsNullOrEmpty(credentialsJson))
+            throw new InvalidOperationException("GOOGLESHEETSREADONLYKEY environment variable is not set.");
+        GoogleCredential credential = GoogleCredential.FromJson(credentialsJson).CreateScoped(SheetsService.Scope.Spreadsheets);
+        _service = new SheetsService(new BaseClientService.Initializer { HttpClientInitializer = credential, ApplicationName = "FashionReportPlugin" });
     }
 
     private static async Task<List<List<uint>>> FetchSheet(string sheetName)
     {
-        if (_service == null) throw new InvalidOperationException("Initialize Sheets API first.");
-        SpreadsheetsResource.ValuesResource.GetRequest request = _service.Spreadsheets.Values.Get(_spreadsheetId, sheetName);
-        ValueRange response = await request.ExecuteAsync();
-        List<List<uint>> data = new();
-        if (response.Values != null)
-            foreach (IList<object>? row in response.Values)
+        if (_service == null) Initialize();
+        try
+        {
+            SpreadsheetsResource.ValuesResource.GetRequest request = _service!.Spreadsheets.Values.Get("1RWNR3MeKq49wfGVEBGIhDMtrJL40uhbtzuZtIpUbVw8", sheetName);
+            ValueRange response = await request.ExecuteAsync();
+            List<List<uint>> data = new();
+            if (response.Values != null)
+                foreach (IList<object>? row in response.Values)
+                {
+                    List<uint> rowData = new();
+                    foreach (object? cell in row)
+                        rowData.Add(uint.TryParse(cell?.ToString() ?? "0", out uint v) ? v : 0);
+                    data.Add(rowData);
+                }
+            return data;
+        }
+        catch (Google.Apis.Auth.OAuth2.Responses.TokenResponseException ex)
+        {
+            if (ex.Error != null && ex.Error.Error == "invalid_grant")
             {
-                List<uint> rowData = new();
-                foreach (object? cell in row)
-                    rowData.Add(uint.TryParse(cell?.ToString() ?? "0", out uint v) ? v : 0);
-                data.Add(rowData);
+                Initialize();
+                return await FetchSheet(sheetName);
             }
-        return data;
+            throw;
+        }
     }
+
 
     internal static async Task<bool> WeekExists(uint week)
     {

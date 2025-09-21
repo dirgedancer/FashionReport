@@ -15,22 +15,18 @@ using FFXIVClientStructs.FFXIV.Component.GUI;
 using System.Threading.Tasks;
 
 
-namespace FashionReport;
+namespace FashionReportCalculator;
 
-public sealed class FASHIONREPORT : IDalamudPlugin
+public sealed class FashionReport : IDalamudPlugin
 {
     public readonly WindowSystem WindowSystem = new("Fashion Report");
     internal static DisplayWindow DisplayWindow { get; set; } = new();
     internal static AboutWindow AboutWindow { get; set; } = new();
 
-    public FASHIONREPORT(IDalamudPluginInterface pluginInterface)
+    public FashionReport(IDalamudPluginInterface pluginInterface)
     {
         pluginInterface.Create<SERVICES>();
         GoogleSheetData.Initialize();
-        SERVICES.CommandManager.AddHandler("/fr", new CommandInfo(OnFCCommand) { HelpMessage = "Open Fashion Report table for testing!" });
-        SERVICES.CommandManager.AddHandler("/fashionreport", new CommandInfo(OnCommand) { HelpMessage = "Fashion Report calculator!" });
-        SERVICES.Interface.UiBuilder.Draw += DrawUI;
-        SERVICES.Interface.UiBuilder.OpenMainUi += OnOpenMainUI;
         SERVICES.AllItems = SERVICES.Data.GetExcelSheet<Item>()?.ToList() ?? new List<Item>();
         SERVICES.AllEquipItems = SERVICES.Data.GetExcelSheet<Item>()?.Where(item => item.ItemSortCategory.RowId != 0 && item.EquipSlotCategory.Value.RowId != 0).ToList() ?? null!;
         SERVICES.AllStains = SERVICES.Data.GetExcelSheet<Stain>().ToList();
@@ -51,8 +47,13 @@ public sealed class FASHIONREPORT : IDalamudPlugin
         SERVICES.frdata = FashionReportDataStorage.Load();
         EquippedGearService.Initialize();
         SERVICES.AddonLifecycle.RegisterListener(AddonEvent.PostSetup, "FashionCheck", OnFashionCheck);
-        WindowSystem.AddWindow(AboutWindow);
         WindowSystem.AddWindow(DisplayWindow);
+        WindowSystem.AddWindow(AboutWindow);
+        SERVICES.CommandManager.AddHandler("/fr", new CommandInfo(OnFashionReport) { HelpMessage = "Open Fashion Report table for testing!" });
+        SERVICES.CommandManager.AddHandler("/fashionreport", new CommandInfo(OnFashionReport) { HelpMessage = "Fashion Report calculator!" });
+        SERVICES.Interface.UiBuilder.Draw += FashionReportDrawUI;
+        SERVICES.Interface.UiBuilder.OpenMainUi += FashionReportUI;
+        SERVICES.Interface.UiBuilder.OpenConfigUi += FashionConfigUI;
         FashionReportPoller.Initialize();
     }
 
@@ -61,18 +62,20 @@ public sealed class FASHIONREPORT : IDalamudPlugin
         SERVICES.AddonLifecycle.UnregisterListener(AddonEvent.PostSetup, "FashionCheck", OnFashionCheck);
         SERVICES.CommandManager.RemoveHandler("/fr");
         SERVICES.CommandManager.RemoveHandler("/fashionreport");
-        SERVICES.Interface.UiBuilder.Draw -= DrawUI;
-        SERVICES.Interface.UiBuilder.OpenMainUi -= OnOpenMainUI;
+        SERVICES.Interface.UiBuilder.Draw -= FashionReportDrawUI;
+        SERVICES.Interface.UiBuilder.OpenMainUi -= FashionReportUI;
+        SERVICES.Interface.UiBuilder.OpenConfigUi -= FashionConfigUI;
+        FashionReportPoller.Dispose();
         EquippedGearService.Close();
         WindowSystem.RemoveAllWindows();
         DisplayWindow.Dispose();
         AboutWindow.Dispose();
     }
 
-    private static void OnFCCommand(string command, string args) => DisplayWindow.Toggle();
-    private static void OnCommand(string command, string args) => DisplayWindow.Toggle();
-    private void DrawUI() => WindowSystem.Draw();
-    private void OnOpenMainUI() => DisplayWindow.Toggle();
+    private static void OnFashionReport(string command, string args) => DisplayWindow.Toggle();
+    private void FashionReportDrawUI() => WindowSystem.Draw();
+    private void FashionReportUI() => DisplayWindow.Toggle();
+    private void FashionConfigUI() => AboutWindow.Toggle();
 
     internal static async Task<nint> GetAddonSafe(string addonName, int timeoutMs = 5000, int pollIntervalMs = 100)
     {

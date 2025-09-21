@@ -2,8 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Dalamud.Configuration;
-using FashionReport;
-using Microsoft.Extensions.DependencyInjection;
+
+
+namespace FashionReportCalculator;
 
 [Serializable]
 public class FashionReportDataStorage : IPluginConfiguration

@@ -10,10 +10,11 @@ using Dalamud.Interface.Textures;
 using Dalamud.Interface.Textures.TextureWraps;
 using Dalamud.Interface.Windowing;
 using Lumina.Excel.Sheets;
-using static FashionReport.EquippedGearService;
+using static FashionReportCalculator.EquippedGearService;
 #pragma warning disable IDE1006
 
-namespace FashionReport;
+
+namespace FashionReportCalculator;
 
 public class DisplayWindow : Window, IDisposable
 {
@@ -171,7 +172,7 @@ public class DisplayWindow : Window, IDisposable
             ImGui.Image(AboutTexture.Handle, aboutSize);
             if (ImGui.IsItemHovered()) ImGui.SetTooltip("About this plugin");
             if (ImGui.IsItemClicked())
-                FashionReport.FASHIONREPORT.AboutWindow.IsOpen = true;
+                FashionReport.AboutWindow.IsOpen = true;
         }
         else
             LOG.Error("AboutTexture is null");

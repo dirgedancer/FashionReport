@@ -10,7 +10,7 @@ using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using Lumina.Excel.Sheets;
 
-namespace FashionReport;
+namespace FashionReportCalculator;
 
 internal sealed class SERVICES
 {

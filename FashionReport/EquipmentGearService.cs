@@ -8,7 +8,7 @@ using Dalamud.Game.Inventory.InventoryEventArgTypes;
 #pragma warning disable IDE1006
 
 
-namespace FashionReport;
+namespace FashionReportCalculator;
 
 public static class EquippedGearService
 {

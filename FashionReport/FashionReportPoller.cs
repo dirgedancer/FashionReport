@@ -3,7 +3,7 @@ using System.Timers;
 using System.Threading.Tasks;
 using Timer = System.Timers.Timer;
 
-namespace FashionReport;
+namespace FashionReportCalculator;
 
 internal static class FashionReportPoller
 {
@@ -69,6 +69,16 @@ internal static class FashionReportPoller
             }
         }
         catch (Exception ex) { LOG.Error($"FashionReportPoller.CheckPollersAsync: {ex.Message}"); }
+    }
+
+    internal static void Dispose()
+    {
+        if (timer != null)
+        {
+            timer.Stop();
+            timer.Dispose();
+            timer = null;
+        }
     }
 
     private static uint LastCheckedWeek { get; set; } = CurrentWeek;

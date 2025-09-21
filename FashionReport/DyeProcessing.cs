@@ -3,7 +3,7 @@ using System.Collections.Generic;
 #pragma warning disable IDE1006
 
 
-namespace FashionReport;
+namespace FashionReportCalculator;
 
 internal class DyeProcessing
 {

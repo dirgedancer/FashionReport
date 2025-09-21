@@ -1,7 +1,9 @@
-using FashionReport;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using System.Runtime.InteropServices;
 using ValueType = FFXIVClientStructs.FFXIV.Component.GUI.ValueType;
+
+
+namespace FashionReportCalculator;
 
 public unsafe class FCAddon
 {

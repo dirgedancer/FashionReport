@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using System.Numerics;
 using Dalamud.Utility;
 
-namespace FashionReport;
+namespace FashionReportCalculator;
 
 internal class AboutWindow : Window, IDisposable
 {

@@ -8,15 +8,8 @@
 		<IsPackable>false</IsPackable>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
 	</PropertyGroup>
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-	  <IsTrimmable>False</IsTrimmable>
-	</PropertyGroup>
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-	  <IsTrimmable>False</IsTrimmable>
-	</PropertyGroup>
 	<ItemGroup>
 		<Content Include="FashionReport.json" CopyToOutputDirectory="Always" />
-		<EmbeddedResource Include="FashionReportSheet.json" />
 		<EmbeddedResource Include="fonts\Arcade.ttf">
 			<LogicalName>FashionReport.Fonts.Arcade.ttf</LogicalName>
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -29,6 +22,5 @@
 		<PackageReference Include="Google.Apis.Core" Version="1.71.0" />
 		<PackageReference Include="Google.Apis.Oauth2.v2" Version="1.68.0.1869" />
 		<PackageReference Include="Google.Apis.Sheets.v4" Version="1.70.0.3819" />
-		<PackageReference Include="MySqlConnector" Version="2.4.0" />
 	</ItemGroup>
 </Project>

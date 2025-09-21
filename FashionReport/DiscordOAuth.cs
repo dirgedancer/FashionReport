@@ -7,7 +7,7 @@ using Dalamud.Configuration;
 using Dalamud.Plugin;
 
 
-namespace FashionReport;
+namespace FashionReportCalculator;
 
 internal static class DiscordOAuth
 {
