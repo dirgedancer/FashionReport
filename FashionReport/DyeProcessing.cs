@@ -5,13 +5,16 @@ using System.Collections.Generic;
 
 namespace FashionReportCalculator;
 
-internal class DyeProcessing
+internal static class DyeProcessing
 {
-    List<DyeStruct> DyeInfo = new();
+    internal static List<DyeStruct> DyeInfo = new();
+
+    internal static async Task LoadDyeData() => DyeInfo = await GoogleSheetData.GetDyeData();
 }
 
 internal class DyeStruct
 {
+    public uint Week { get; set; }
     public uint Score { get; set; }
 
     public uint WeaponItemId { get; set; }
@@ -91,4 +94,5 @@ internal class DyeStruct
     public uint LeftRingGlamourId { get; set; }
     public uint LeftRingPicture { get; set; }
     public uint LeftRingPictureInfo { get; set; }
+    public string Results { get; set; } = string.Empty;
 }

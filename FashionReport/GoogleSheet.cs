@@ -66,6 +66,91 @@ internal static class GoogleSheetData
         }
     }
 
+    internal static async Task<List<DyeStruct>> GetDyeData()
+    {
+        List<DyeStruct> results = new();
+        List<List<uint>> data = await FetchSheet("WeeklyDyes");
+        foreach (List<uint> row in data)
+        {
+            if (row.Count < 65) continue;
+            int i = 0;
+            DyeStruct d = new()
+            {
+                Score = row[i++],
+                WeaponItemId = row[i++],
+                WeaponGlamourId = row[i++],
+                WeaponDye1 = row[i++] == 0 ? null : row[i - 1],
+                WeaponDye2 = row[i++] == 0 ? null : row[i - 1],
+                WeaponTheme = row[i++],
+                WeaponPicture = row[i++],
+                WeaponPictureInfo = row[i++],
+                HeadItemId = row[i++],
+                HeadGlamourId = row[i++],
+                HeadDye1 = row[i++] == 0 ? null : row[i - 1],
+                HeadDye2 = row[i++] == 0 ? null : row[i - 1],
+                HeadTheme = row[i++],
+                HeadPicture = row[i++],
+                HeadPictureInfo = row[i++],
+                BodyItemId = row[i++],
+                BodyGlamourId = row[i++],
+                BodyDye1 = row[i++] == 0 ? null : row[i - 1],
+                BodyDye2 = row[i++] == 0 ? null : row[i - 1],
+                BodyTheme = row[i++],
+                BodyPicture = row[i++],
+                BodyPictureInfo = row[i++],
+                GlovesItemId = row[i++],
+                GlovesGlamourId = row[i++],
+                GlovesDye1 = row[i++] == 0 ? null : row[i - 1],
+                GlovesDye2 = row[i++] == 0 ? null : row[i - 1],
+                GlovesTheme = row[i++],
+                GlovesPicture = row[i++],
+                GlovesPictureInfo = row[i++],
+                LegsItemId = row[i++],
+                LegsGlamourId = row[i++],
+                LegsDye1 = row[i++] == 0 ? null : row[i - 1],
+                LegsDye2 = row[i++] == 0 ? null : row[i - 1],
+                LegsTheme = row[i++],
+                LegsPicture = row[i++],
+                LegsPictureInfo = row[i++],
+                BootsItemId = row[i++],
+                BootsGlamourId = row[i++],
+                BootsDye1 = row[i++] == 0 ? null : row[i - 1],
+                BootsDye2 = row[i++] == 0 ? null : row[i - 1],
+                BootsTheme = row[i++],
+                BootsPicture = row[i++],
+                BootsPictureInfo = row[i++],
+                EarringsItemId = row[i++],
+                EarringsGlamourId = row[i++],
+                EarringsTheme = row[i++],
+                EarringsPicture = row[i++],
+                EarringsPictureInfo = row[i++],
+                NecklaceItemId = row[i++],
+                NecklaceGlamourId = row[i++],
+                NecklaceTheme = row[i++],
+                NecklacePicture = row[i++],
+                NecklacePictureInfo = row[i++],
+                BraceletItemId = row[i++],
+                BraceletGlamourId = row[i++],
+                BraceletTheme = row[i++],
+                BraceletPicture = row[i++],
+                BraceletPictureInfo = row[i++],
+                RightRingItemId = row[i++],
+                RightRingGlamourId = row[i++],
+                RightRingTheme = row[i++],
+                RightRingPicture = row[i++],
+                RightRingPictureInfo = row[i++],
+                LeftRingItemId = row[i++],
+                LeftRingGlamourId = row[i++],
+                LeftRingTheme = row[i++],
+                LeftRingPicture = row[i++],
+                LeftRingPictureInfo = row[i++]
+            };
+            results.Add(d);
+        }
+        LOG.Debug($"GetDyeData - found {results.Count} entries");
+        return results;
+    }
+
     internal static async Task<bool> WeekExists(uint week)
     {
         LOG.Debug("Running WeekExists");

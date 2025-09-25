@@ -22,6 +22,7 @@ public sealed class FashionReport : IDalamudPlugin
     public readonly WindowSystem WindowSystem = new("Fashion Report");
     internal static DisplayWindow DisplayWindow { get; set; } = new();
     internal static AboutWindow AboutWindow { get; set; } = new();
+    internal static JudgingWindow JudgingWindow { get; set; } = new();
 
     public FashionReport(IDalamudPluginInterface pluginInterface)
     {
@@ -49,8 +50,10 @@ public sealed class FashionReport : IDalamudPlugin
         SERVICES.AddonLifecycle.RegisterListener(AddonEvent.PostSetup, "FashionCheck", OnFashionCheck);
         WindowSystem.AddWindow(DisplayWindow);
         WindowSystem.AddWindow(AboutWindow);
+        WindowSystem.AddWindow(JudgingWindow);
         SERVICES.CommandManager.AddHandler("/fr", new CommandInfo(OnFashionReport) { HelpMessage = "Open Fashion Report table for testing!" });
         SERVICES.CommandManager.AddHandler("/fashionreport", new CommandInfo(OnFashionReport) { HelpMessage = "Fashion Report calculator!" });
+        SERVICES.CommandManager.AddHandler("/judging", new CommandInfo(OnJudging) { HelpMessage = "Judging Information" });
         SERVICES.Interface.UiBuilder.Draw += FashionReportDrawUI;
         SERVICES.Interface.UiBuilder.OpenMainUi += FashionReportUI;
         SERVICES.Interface.UiBuilder.OpenConfigUi += FashionConfigUI;
@@ -70,9 +73,11 @@ public sealed class FashionReport : IDalamudPlugin
         WindowSystem.RemoveAllWindows();
         DisplayWindow.Dispose();
         AboutWindow.Dispose();
+        JudgingWindow.Dispose();
     }
 
     private static void OnFashionReport(string command, string args) => DisplayWindow.Toggle();
+    private static void OnJudging(string command, string args) => JudgingWindow.Toggle();
     private void FashionReportDrawUI() => WindowSystem.Draw();
     private void FashionReportUI() => DisplayWindow.Toggle();
     private void FashionConfigUI() => AboutWindow.Toggle();
@@ -138,6 +143,7 @@ public sealed class FashionReport : IDalamudPlugin
             FashionCheckScoreGauge Gauge = new(g);
             DyeStruct dyeEntry = new()
             {
+                Week = FashionReportPoller.CurrentWeek,
                 Score = Gauge.Score,
                 WeaponItemId = fashionCheck.WeaponItemId,
                 WeaponGlamourId = fashionCheck.WeaponGlamourId,
