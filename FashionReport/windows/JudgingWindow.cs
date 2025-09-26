@@ -25,7 +25,14 @@ internal class JudgingWindow : Window, IDisposable
             IsIds = !IsIds;
         ImGui.SameLine();
         if (ImGui.Button("Pull Data"))
-            lock (lLock) DyeProcessing.LoadDyeData().Wait();
+        {
+            lock (lLock)
+            {
+                DyeProcessing.LoadDyeData().Wait();
+                for (int c = 0; c < DyeProcessing.DyeInfo.Count; c++)
+                    DyeProcessing.DyeInfo[c] = DyeProcessing.ProcessData(DyeProcessing.DyeInfo[c]);
+            }
+        }
         ImGui.SameLine();
         ImGui.Text("Warning, Data may take time to pull depending on size.");
         if (ImGui.BeginTable("FashionTable", 32, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg))
@@ -153,7 +160,7 @@ internal class JudgingWindow : Window, IDisposable
     {
         if (UserAttempts.Count > 4) Reset();
         foreach (DyeStruct e in UserAttempts) if (e.Week < FashionReportPoller.CurrentWeek) UserAttempts.Remove(e);
-        UserAttempts.Add(d);
+        UserAttempts.Add(DyeProcessing.ProcessData(d));
         await Task.CompletedTask;
     }
 
