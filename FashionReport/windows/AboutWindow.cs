@@ -120,6 +120,7 @@ internal class AboutWindow : Window, IDisposable
                 ImGui.TextWrapped("ScarBot is still in Developing. The BOT is based on plugins that are added to give her more abilities and support. If you wish to contribute or write your own commands to add to her, you can do so through her Discord. We will be coming out with a Wiki explaining how to write plugins for her soon.");
                 ImGui.EndTabItem();
             }
+            /*
             if (ImGui.BeginTabItem("Contributors"))
             {
                 ImGui.TextWrapped("Help Contribute!");
@@ -140,7 +141,7 @@ internal class AboutWindow : Window, IDisposable
                 ImGui.Spacing();
                 ImGui.Spacing();
                 if (ImGui.Button("Discord Authorize"))
-                    DiscordOAuth.RequestLoginUrl().WaitSafely();
+                    DiscordOAuth.StartLoginAsync();
                 ImGui.SameLine();
                 ImGui.TextColoredWrapped(new Vector4(1f, 1f, 0f, 1f), "You can register multiple characters to one Discord!");
                 ImGui.Spacing();
@@ -152,6 +153,7 @@ internal class AboutWindow : Window, IDisposable
                     ImGui.TextColoredWrapped(new Vector4(1f, 0f, 0f, 1f), "Not Done");
                 ImGui.EndTabItem();
             }
+            */
             if (ImGui.BeginTabItem("Future Plans"))
             {
                 ImGui.TextWrapped("Future Plans:");

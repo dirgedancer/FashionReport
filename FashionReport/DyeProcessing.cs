@@ -548,7 +548,7 @@ internal class DyeColor
     internal void IsNotPureWhite() => White = TurnBitOff(White, 2);
 }
 
-internal class DyeStruct
+public class DyeStruct
 {
     public uint Week { get; set; }
     public uint Score { get; set; }

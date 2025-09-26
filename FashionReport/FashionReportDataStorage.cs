@@ -10,7 +10,6 @@ namespace FashionReportCalculator;
 public class FashionReportDataStorage : IPluginConfiguration
 {
     public int Version { get; set; }
-    public bool IsLongDisplay { get; set; } = true;
 
     public uint Week { get; set; }
     public uint WeeklyTheme { get; set; }
@@ -158,9 +157,10 @@ public class FashionReportDataStorage : IPluginConfiguration
         BraceletThemeName = fashionCheck.WristTheme;
         RightRingThemeName = fashionCheck.RightRingTheme;
         LeftRingThemeName = fashionCheck.LeftRingTheme;
-        await ProcessorFromString();
         WeaponDye = HeadDye = BodyDye = GlovesDye = LegsDye = BootsDye = null;
         WeaponDyeName = HeadDyeName = BootsDyeName = GlovesDyeName = LegsDyeName = BootsDyeName = string.Empty;
+        WeaponData = HeadData = BodyData = GlovesData = LegsData = BootsData = EarringsData = NecklaceData = BraceletData = RightRingData = LeftRingData = null;
+        await ProcessorFromString();
         Timestamp = (ulong)new DateTimeOffset(FashionReportPoller.GetFridayOfDyeWeek(Week)).ToUnixTimeSeconds();
     }
     public static FashionReportDataStorage Load() => SERVICES.Interface.GetPluginConfig() as FashionReportDataStorage ?? new FashionReportDataStorage();

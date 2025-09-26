@@ -14,7 +14,6 @@ namespace FashionReportCalculator;
 internal class JudgingWindow : Window, IDisposable
 {
     private bool IsIds = false;
-    List<DyeStruct> UserAttempts = new();
     Lock lLock = new();
 
     public JudgingWindow() : base("Dye Calculations", ImGuiWindowFlags.None) { }
@@ -72,11 +71,11 @@ internal class JudgingWindow : Window, IDisposable
             ImGui.TableHeadersRow();
             try
             {
-                foreach (DyeStruct d in UserAttempts)
+                foreach (DyeStruct d in GeneralData.UserAttempts)
                     DrawDyeStruct(d);
                 foreach (DyeStruct d in DyeProcessing.DyeInfo)
                     DrawDyeStruct(d);
-                LOG.Debug($"DyeProcessing.DyeInfo Count: {DyeProcessing.DyeInfo.Count}, UserAttempts Count: {UserAttempts.Count}");
+                LOG.Debug($"DyeProcessing.DyeInfo Count: {DyeProcessing.DyeInfo.Count}, UserAttempts Count: {GeneralData.UserAttempts.Count}");
             }
             catch (Exception ex) { LOG.Error($"JudgingWindow.Draw: {ex.Message}"); }
             ImGui.EndTable();
@@ -158,13 +157,14 @@ internal class JudgingWindow : Window, IDisposable
 
     internal async Task JudgeAttempt(DyeStruct d)
     {
-        if (UserAttempts.Count > 4) Reset();
-        foreach (DyeStruct e in UserAttempts) if (e.Week < FashionReportPoller.CurrentWeek) UserAttempts.Remove(e);
-        UserAttempts.Add(DyeProcessing.ProcessData(d));
+        LOG.Debug("Judging Attempt");
+        if (GeneralData.UserAttempts.Count > 4) Reset();
+        foreach (DyeStruct e in GeneralData.UserAttempts) if (e.Week < FashionReportPoller.CurrentWeek) GeneralData.UserAttempts.Remove(e);
+        GeneralData.UserAttempts.Add(DyeProcessing.ProcessData(d));
         await Task.CompletedTask;
     }
 
-    internal void Reset() => UserAttempts = new();
+    internal void Reset() => GeneralData.UserAttempts = new();
 
     public void Dispose() { }
 }

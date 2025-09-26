@@ -15,6 +15,8 @@ internal static class DiscordOAuth
     private const string ProxyBaseUrl = "https://ScarBot.ddns.net:443/DiscordOAuthInformation";
     internal static DiscordConfiguration _discordConfiguration = DiscordConfiguration.Load();
 
+    internal static void StartLoginAsync(int timeoutSeconds = 60) => _ = Task.Run(async() => await RequestLoginUrl(timeoutSeconds));
+
     internal static async Task RequestLoginUrl(int timeoutSeconds = 60)
     {
         try

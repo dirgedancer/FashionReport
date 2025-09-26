@@ -41,6 +41,7 @@ public class DisplayWindow : Window, IDisposable
     private Vector2? cacheThemeWindowSize = null;
     private float? cacheScrollableHeight = null;
     private List<DisplayItem>? cacheItems = null;
+    internal bool FirstOpen = true;
 
     public DisplayWindow() : base("Fashion Report Display Window", ImGuiWindowFlags.NoResize)
     {
@@ -117,11 +118,27 @@ public class DisplayWindow : Window, IDisposable
 
     public override void Draw()
     {
+        if (FirstOpen)
+        {
+            FirstOpen = false;
+            GeneralData.Load();
+            if (GeneralData.LastWeekChecked != 0 && GeneralData.LastWeekChecked < SERVICES.frdata.Week)
+            {
+                GeneralData.UserAttempts.Clear();
+                GeneralData.LastWeekChecked = SERVICES.frdata.Week;
+                GeneralData.Save();
+            }
+            else if (GeneralData.LastWeekChecked == 0)
+            {
+                GeneralData.LastWeekChecked = SERVICES.frdata.Week;
+                GeneralData.Save();
+            }
+        }
         Size = _windowSize;
         SizeCondition = ImGuiCond.Always;
         DrawWeeklyHeader();
         DrawTopButtons();
-        (float TableWidth, float TableHeight) = SERVICES.frdata.IsLongDisplay ? DrawLongTable() : DrawShortTable();
+        (float TableWidth, float TableHeight) = GeneralData.IsLongDisplay ? DrawLongTable() : DrawShortTable();
         Vector2 WindowPadding = ImGui.GetStyle().WindowPadding;
         _windowSize = new Vector2(TableWidth + (WindowPadding.X * 2), (TableHeight * 1.5f) + (WindowPadding.Y * 2));
         if (uSlot != null)
@@ -133,19 +150,19 @@ public class DisplayWindow : Window, IDisposable
         string weeklyTheme = SERVICES.frdata.WeeklyThemeName ?? string.Empty;
         string weekText = SERVICES.frdata.Week.ToString();
         bool isOldWeek = SERVICES.frdata.Week != FashionReportPoller.CurrentWeek;
-        IFontHandle? themeFont = SERVICES.frdata.IsLongDisplay ? WeeklyThemeFontHandle : ShortWeeklyThemeFontHandle;
-        IFontHandle? weekFont = SERVICES.frdata.IsLongDisplay ? WeekFontHandle : ShortWeekFontHandle;
+        IFontHandle? themeFont = GeneralData.IsLongDisplay ? WeeklyThemeFontHandle : ShortWeeklyThemeFontHandle;
+        IFontHandle? weekFont = GeneralData.IsLongDisplay ? WeekFontHandle : ShortWeekFontHandle;
         if (isOldWeek) ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0f, 0f, 1f));
         if (themeFont != null) themeFont.Push();
         Vector2 themeSize = ImGui.CalcTextSize(weeklyTheme);
         ImGui.SetCursorPosX((_windowSize.X - themeSize.X) / 2);
-        ImGui.SetCursorPosY(SERVICES.frdata.IsLongDisplay ? 15f : 35f);
+        ImGui.SetCursorPosY(GeneralData.IsLongDisplay ? 15f : 35f);
         ImGui.Text(weeklyTheme);
         if (themeFont != null) themeFont.Pop();
         if (weekFont != null) weekFont.Push();
         Vector2 weekSize = ImGui.CalcTextSize(weekText);
         ImGui.SetCursorPosX((_windowSize.X - weekSize.X) / 2);
-        ImGui.SetCursorPosY(SERVICES.frdata.IsLongDisplay ? 10f + themeSize.Y - 30f : 130f - weekSize.Y - 20f);
+        ImGui.SetCursorPosY(GeneralData.IsLongDisplay ? 10f + themeSize.Y - 30f : 130f - weekSize.Y - 20f);
         ImGui.Text(weekText);
         if (weekFont != null) weekFont.Pop();
         if (isOldWeek) ImGui.PopStyleColor();
@@ -176,15 +193,15 @@ public class DisplayWindow : Window, IDisposable
         }
         else
             LOG.Error("AboutTexture is null");
-        IDalamudTextureWrap? SwitchTexture = SERVICES.frdata.IsLongDisplay ? ShortTexture : LongTexture;
+        IDalamudTextureWrap? SwitchTexture = GeneralData.IsLongDisplay ? ShortTexture : LongTexture;
         if (SwitchTexture != null)
         {
             ImGui.SetCursorPos(new Vector2(10, 30 + size.Y - (SwitchTexture!.Height / 10)));
-            string tooltipText = SERVICES.frdata.IsLongDisplay ? "Switch to Short View" : "Switch to Long View";
+            string tooltipText = GeneralData.IsLongDisplay ? "Switch to Short View" : "Switch to Long View";
             ImGui.Image(SwitchTexture.Handle, new Vector2(SwitchTexture.Width / 10, SwitchTexture.Height / 10));
             if (ImGui.IsItemHovered()) ImGui.SetTooltip(tooltipText);
             if (ImGui.IsItemClicked())
-                SERVICES.frdata.IsLongDisplay = !SERVICES.frdata.IsLongDisplay;
+                GeneralData.IsLongDisplay = !GeneralData.IsLongDisplay;
         }
         else
             LOG.Error("SwitchTexture is null");

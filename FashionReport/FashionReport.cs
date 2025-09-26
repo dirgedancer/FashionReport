@@ -23,6 +23,8 @@ public sealed class FashionReport : IDalamudPlugin
     internal static DisplayWindow DisplayWindow { get; set; } = new();
     internal static AboutWindow AboutWindow { get; set; } = new();
     internal static JudgingWindow JudgingWindow { get; set; } = new();
+    internal static Reader reader { get; set; } = new();
+    private static SemaphoreSlim _Semaphore = new(1, 1);
 
     public FashionReport(IDalamudPluginInterface pluginInterface)
     {
@@ -47,22 +49,31 @@ public sealed class FashionReport : IDalamudPlugin
         });
         SERVICES.frdata = FashionReportDataStorage.Load();
         EquippedGearService.Initialize();
-        SERVICES.AddonLifecycle.RegisterListener(AddonEvent.PostSetup, "FashionCheck", OnFashionCheck);
         WindowSystem.AddWindow(DisplayWindow);
         WindowSystem.AddWindow(AboutWindow);
         WindowSystem.AddWindow(JudgingWindow);
-        SERVICES.CommandManager.AddHandler("/fr", new CommandInfo(OnFashionReport) { HelpMessage = "Open Fashion Report table for testing!" });
         SERVICES.CommandManager.AddHandler("/fashionreport", new CommandInfo(OnFashionReport) { HelpMessage = "Fashion Report calculator!" });
-        SERVICES.CommandManager.AddHandler("/judging", new CommandInfo(OnJudging) { HelpMessage = "Judging Information" });
+        SERVICES.CommandManager.AddHandler("/fr", new CommandInfo(OnFashionReport) { HelpMessage = "Open Fashion Report table for testing!" });
+        //SERVICES.CommandManager.AddHandler("/judging", new CommandInfo(OnJudging) { HelpMessage = "Judging Information" });
         SERVICES.Interface.UiBuilder.Draw += FashionReportDrawUI;
         SERVICES.Interface.UiBuilder.OpenMainUi += FashionReportUI;
         SERVICES.Interface.UiBuilder.OpenConfigUi += FashionConfigUI;
         FashionReportPoller.Initialize();
+        reader.Initialize();
+        SERVICES.AddonLifecycle.RegisterListener(AddonEvent.PostSetup, "FashionCheck", OnFashionCheck);
+        //SERVICES.AddonLifecycle.RegisterListener(AddonEvent.PostReceiveEvent, "FashionCheck", OnFashionCheck);
+        //SERVICES.AddonLifecycle.RegisterListener(AddonEvent.PostRequestedUpdate, "FashionCheck", OnFashionCheck);
+        //SERVICES.AddonLifecycle.RegisterListener(AddonEvent.PostUpdate, "FashionCheck", OnFashionCheck);
+        if (reader != new Reader()) WindowSystem.AddWindow(reader);
     }
 
     public void Dispose()
     {
         SERVICES.AddonLifecycle.UnregisterListener(AddonEvent.PostSetup, "FashionCheck", OnFashionCheck);
+        //SERVICES.AddonLifecycle.UnregisterListener(AddonEvent.PostReceiveEvent, "FashionCheck", OnFashionCheck);
+        //SERVICES.AddonLifecycle.UnregisterListener(AddonEvent.PostRequestedUpdate, "FashionCheck", OnFashionCheck);
+        //SERVICES.AddonLifecycle.UnregisterListener(AddonEvent.PostUpdate, "FashionCheck", OnFashionCheck);
+        //SERVICES.CommandManager.RemoveHandler("/judging");
         SERVICES.CommandManager.RemoveHandler("/fr");
         SERVICES.CommandManager.RemoveHandler("/fashionreport");
         SERVICES.Interface.UiBuilder.Draw -= FashionReportDrawUI;
@@ -101,9 +112,10 @@ public sealed class FashionReport : IDalamudPlugin
 
     private static async void OnFashionCheck(AddonEvent type, AddonArgs args)
     {
+        if (!_Semaphore.Wait(0)) return;
         try
         {
-            LOG.Debug("OnFashionCheck triggered.");
+            LOG.Debug($"OnFashionCheck triggered: {type.ToString()}");
             FashionCheck fashionCheck = new(await GetAddonSafe("FashionCheck"));
             if (fashionCheck.IsNull || !fashionCheck.IsReady)
             {
@@ -129,8 +141,7 @@ public sealed class FashionReport : IDalamudPlugin
             temp.RightRingThemeName = fashionCheck.RightRingTheme;
             temp.LeftRingThemeName = fashionCheck.LeftRingTheme;
             await temp.ProcessorFromString();
-            if (SERVICES.frdata != temp)
-                SERVICES.frdata = temp;
+            if (SERVICES.frdata != temp) SERVICES.frdata = temp;
             if (SERVICES.frdata.Week != oldWeek || !await GoogleSheetData.IsWeekUpdated(SERVICES.frdata.Week))
                 _ = Task.Run(async () =>
                 {
@@ -139,6 +150,7 @@ public sealed class FashionReport : IDalamudPlugin
                     LOG.Info($"FashionCheck week {SERVICES.frdata.Week} updated.");
                 });
             if (temp.Weapon == null) return;
+            LOG.Debug("We have a judging!");
             nint g = await GetAddonSafe("FashionCheckScoreGauge", 10000, 100);
             FashionCheckScoreGauge Gauge = new(g);
             DyeStruct dyeEntry = new()
@@ -213,8 +225,10 @@ public sealed class FashionReport : IDalamudPlugin
                 LeftRingPicture = fashionCheck.LeftRingPicture,
                 LeftRingPictureInfo = fashionCheck.LeftRingPictureInfo
             };
+            LOG.Debug("dyeEntry is filled up, sending to the writer!");
             await GoogleSheetWriter.InsertFashionReportDye(dyeEntry);
         }
         catch (Exception ex) { LOG.Error($"Error in OnFashionCheck: {ex}"); }
+        finally { _Semaphore.Release(); }
     }
 }
