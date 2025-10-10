@@ -41,7 +41,6 @@ public class DisplayWindow : Window, IDisposable
     private Vector2? cacheThemeWindowSize = null;
     private float? cacheScrollableHeight = null;
     private List<DisplayItem>? cacheItems = null;
-    internal bool FirstOpen = true;
 
     public DisplayWindow() : base("Fashion Report Display Window", ImGuiWindowFlags.NoResize)
     {
@@ -118,22 +117,6 @@ public class DisplayWindow : Window, IDisposable
 
     public override void Draw()
     {
-        if (FirstOpen)
-        {
-            FirstOpen = false;
-            GeneralData.Load();
-            if (GeneralData.LastWeekChecked != 0 && GeneralData.LastWeekChecked < SERVICES.frdata.Week)
-            {
-                GeneralData.UserAttempts.Clear();
-                GeneralData.LastWeekChecked = SERVICES.frdata.Week;
-                GeneralData.Save();
-            }
-            else if (GeneralData.LastWeekChecked == 0)
-            {
-                GeneralData.LastWeekChecked = SERVICES.frdata.Week;
-                GeneralData.Save();
-            }
-        }
         Size = _windowSize;
         SizeCondition = ImGuiCond.Always;
         DrawWeeklyHeader();
