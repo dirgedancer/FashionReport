@@ -10,7 +10,7 @@ internal static class FashionReportPoller
     private static Timer? timer;
     private static readonly TimeSpan DefaultInterval = TimeSpan.FromMinutes(15);
 
-    internal static void Initialize(int pollIntervalMs = 60_000)
+    internal static void Initialize(int pollIntervalMs = 1_000)
     {
         timer = new Timer(pollIntervalMs) { AutoReset = false };
         timer.Elapsed += OnTimerElapsed;
@@ -41,6 +41,7 @@ internal static class FashionReportPoller
             if (report.Week > SERVICES.frdata.Week)
             {
                 SERVICES.frdata = report;
+                FashionReport.DisplayWindow.RefreshDisplayData();
                 LOG.Info(
                     $"FashionReportXIV updated to week {report.Week}: " +
                     $"{report.WeeklyThemeName}");
@@ -63,6 +64,7 @@ internal static class FashionReportPoller
             if (report != SERVICES.frdata)
             {
                 SERVICES.frdata = report;
+                FashionReport.DisplayWindow.RefreshDisplayData();
                 LOG.Info($"Dyes known: {dyesFound}");
             }
             if (dyesFound == 6)

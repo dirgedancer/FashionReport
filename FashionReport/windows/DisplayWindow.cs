@@ -57,62 +57,7 @@ public class DisplayWindow : Window, IDisposable
         gearWidth = ImGui.CalcTextSize("Augmented Lunar Envoy's Fingerless Gloves of Maiming").X + padding;
         itemDyeWidth = ImGui.CalcTextSize("Metallic Cobalt Green").X + padding;
         pointsWidth = ImGui.CalcTextSize("Points").X + padding;
-        foreach (string slot in SERVICES.FRSlots)
-        {
-            List<DisplayItem> slotItems = new();
-            List<uint>? itemIds = slot switch
-            {
-                "Weapon" => SERVICES.frdata.WeaponData,
-                "Head" => SERVICES.frdata.HeadData,
-                "Body" => SERVICES.frdata.BodyData,
-                "Gloves" => SERVICES.frdata.GlovesData,
-                "Legs" => SERVICES.frdata.LegsData,
-                "Boots" => SERVICES.frdata.BootsData,
-                "Earrings" => SERVICES.frdata.EarringsData,
-                "Necklace" => SERVICES.frdata.NecklaceData,
-                "Bracelet" => SERVICES.frdata.BraceletData,
-                "RightRing" => SERVICES.frdata.RightRingData,
-                "LeftRing" => SERVICES.frdata.LeftRingData,
-                _ => null
-            };
-            string themeName = slot switch
-            {
-                "Weapon" => SERVICES.frdata.WeaponThemeName,
-                "Head" => SERVICES.frdata.HeadThemeName,
-                "Body" => SERVICES.frdata.BodyThemeName,
-                "Gloves" => SERVICES.frdata.GlovesThemeName,
-                "Legs" => SERVICES.frdata.LegsThemeName,
-                "Boots" => SERVICES.frdata.BootsThemeName,
-                "Earrings" => SERVICES.frdata.EarringsThemeName,
-                "Necklace" => SERVICES.frdata.NecklaceThemeName,
-                "Bracelet" => SERVICES.frdata.BraceletThemeName,
-                "RightRing" => SERVICES.frdata.RightRingThemeName,
-                "LeftRing" => SERVICES.frdata.LeftRingThemeName,
-                _ => ""
-            };
-            if (itemIds == null || itemIds.Count == 0 || string.IsNullOrEmpty(themeName))
-                continue;
-            foreach (uint itemId in itemIds)
-            {
-                Item item = SERVICES.AllItems.FirstOrDefault(x => x.RowId == itemId);
-                if (item.RowId == 0) continue;
-                DisplayItem display = new()
-                {
-                    ItemId = item.RowId,
-                    Name = item.Name.ExtractText(),
-                    Level = item.LevelEquip,
-                    IconId = item.Icon,
-                    IsCraftable = false,
-                    IsQuestReward = false,
-                    IsDuty = false,
-                    IsVendor = false,
-                };
-                slotItems.Add(display);
-            }
-            DisplayData[slot] = slotItems;
-        }
-        LOG.Debug($"Finished populating dictionary. Total themes populated: {DisplayData.Count}.");
-
+        RefreshDisplayData();
     }
 
     public override void Draw()
@@ -642,6 +587,89 @@ public class DisplayWindow : Window, IDisposable
         ShortWeekFontHandle?.Dispose();
     }
 
+    internal void RefreshDisplayData()
+    {
+        DisplayData.Clear();
+
+        foreach (string slot in SERVICES.FRSlots)
+        {
+            List<DisplayItem> slotItems = new();
+
+            List<uint>? itemIds = slot switch
+            {
+                "Weapon" => SERVICES.frdata.WeaponData,
+                "Head" => SERVICES.frdata.HeadData,
+                "Body" => SERVICES.frdata.BodyData,
+                "Gloves" => SERVICES.frdata.GlovesData,
+                "Legs" => SERVICES.frdata.LegsData,
+                "Boots" => SERVICES.frdata.BootsData,
+                "Earrings" => SERVICES.frdata.EarringsData,
+                "Necklace" => SERVICES.frdata.NecklaceData,
+                "Bracelet" => SERVICES.frdata.BraceletData,
+                "RightRing" => SERVICES.frdata.RightRingData,
+                "LeftRing" => SERVICES.frdata.LeftRingData,
+                _ => null
+            };
+
+            string themeName = slot switch
+            {
+                "Weapon" => SERVICES.frdata.WeaponThemeName,
+                "Head" => SERVICES.frdata.HeadThemeName,
+                "Body" => SERVICES.frdata.BodyThemeName,
+                "Gloves" => SERVICES.frdata.GlovesThemeName,
+                "Legs" => SERVICES.frdata.LegsThemeName,
+                "Boots" => SERVICES.frdata.BootsThemeName,
+                "Earrings" => SERVICES.frdata.EarringsThemeName,
+                "Necklace" => SERVICES.frdata.NecklaceThemeName,
+                "Bracelet" => SERVICES.frdata.BraceletThemeName,
+                "RightRing" => SERVICES.frdata.RightRingThemeName,
+                "LeftRing" => SERVICES.frdata.LeftRingThemeName,
+                _ => ""
+            };
+
+            if (itemIds == null ||
+                itemIds.Count == 0 ||
+                string.IsNullOrEmpty(themeName))
+            {
+                continue;
+            }
+
+            foreach (uint itemId in itemIds)
+            {
+                Item item =
+                    SERVICES.AllItems.FirstOrDefault(x => x.RowId == itemId);
+
+                if (item.RowId == 0)
+                    continue;
+
+                DisplayItem display = new()
+                {
+                    ItemId = item.RowId,
+                    Name = item.Name.ExtractText(),
+                    Level = item.LevelEquip,
+                    IconId = item.Icon,
+                    IsCraftable = false,
+                    IsQuestReward = false,
+                    IsDuty = false,
+                    IsVendor = false,
+                };
+
+                slotItems.Add(display);
+            }
+
+            DisplayData[slot] = slotItems;
+        }
+
+        cacheThemeWindowSize = null;
+        cacheScrollableHeight = null;
+        cacheItems = null;
+        uSlot = null;
+        uTheme = null;
+
+        LOG.Debug(
+            $"Refreshed display data. Total themes populated: {DisplayData.Count}.");
+    }
+    
     internal class DisplayItem
     {
         public uint ItemId;
