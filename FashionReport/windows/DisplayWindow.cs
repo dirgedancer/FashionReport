@@ -26,10 +26,7 @@ public class DisplayWindow : Window, IDisposable
     private IDalamudTextureWrap? AboutTexture;
     private readonly Vector4[] IconColors = new Vector4[9] { new Vector4(0f, 0f, 1f, 1f), new Vector4(1f, 0f, 0f, 1f), new Vector4(1f, 1f, 0f, 1f), new Vector4(0.5f, 0.5f, 0.5f, 1f), new Vector4(0.8f, 0.8f, 0.8f, 1f), new Vector4(0.4f, 0.2f, 0f, 1f), new Vector4(0f, 1f, 0f, 1f), new Vector4(1f, 1f, 1f, 1f), new Vector4(0.5f, 0f, 0.5f, 1f) };
     private readonly float slotWidth;
-    private readonly float dyesWidth;
     private readonly float themeWidth;
-    private readonly float gearWidth;
-    private readonly float itemDyeWidth;
     private readonly float pointsWidth;
     private IFontHandle? WeeklyThemeFontHandle = CreateFontFromResource("FashionReport.Fonts.Arcade.ttf", 100f, SERVICES.Interface.UiBuilder.FontAtlas);
     private IFontHandle? WeekFontHandle = CreateFontFromResource("FashionReport.Fonts.Arcade.ttf", 48f, SERVICES.Interface.UiBuilder.FontAtlas);
@@ -52,11 +49,12 @@ public class DisplayWindow : Window, IDisposable
         LongTexture = SERVICES.Texture.CreateFromImageAsync(Assembly.GetExecutingAssembly().GetManifestResourceStream("FashionReport.images.Long.png")!).Result;
         float padding = ImGui.GetStyle().CellPadding.X * 2;
         slotWidth = ImGui.CalcTextSize("Right Ring (Metallic Cobalt Green)").X + padding;
-        dyesWidth = ImGui.CalcTextSize("Metallic Cobalt Green").X + padding;
         themeWidth = ImGui.CalcTextSize("Fashionably Late Allagan").X + padding;
-        gearWidth = ImGui.CalcTextSize("Augmented Lunar Envoy's Fingerless Gloves of Maiming").X + padding;
-        itemDyeWidth = ImGui.CalcTextSize("Metallic Cobalt Green").X + padding;
-        pointsWidth = ImGui.CalcTextSize("Points").X + padding;
+        pointsWidth = Math.Max(
+            ImGui.CalcTextSize("Points").X,
+            ImGui.CalcTextSize("100").X)
+            + (padding * 2)
+            + 12f;        
         RefreshDisplayData();
     }
 
@@ -68,9 +66,13 @@ public class DisplayWindow : Window, IDisposable
         DrawTopButtons();
         (float TableWidth, float TableHeight) = GeneralData.IsLongDisplay ? DrawLongTable() : DrawShortTable();
         Vector2 WindowPadding = ImGui.GetStyle().WindowPadding;
-        _windowSize = new Vector2(TableWidth + (WindowPadding.X * 2), (TableHeight * 1.5f) + (WindowPadding.Y * 2));
-        if (uSlot != null)
-            DrawThemeWindow();
+        const float tableTop = 130f;
+
+        _windowSize = new Vector2(
+            TableWidth + (WindowPadding.X * 2),
+            tableTop + TableHeight + (WindowPadding.Y * 2) + 8f);        if (uSlot != null)
+
+        DrawThemeWindow();
     }
 
     private void DrawWeeklyHeader()
@@ -245,22 +247,126 @@ public class DisplayWindow : Window, IDisposable
         ImGui.SetCursorPosY(130);
         uint TotalSlot = 0, TotalDye = 0, TotalPoints = 0, MaxPoints = 0;
         float contentStart = 130;
-        float cellPaddingX = ImGui.GetStyle().CellPadding.X;
-        float columnSpacingX = ImGui.GetStyle().ItemSpacing.X;
-        float tableWidth = slotWidth + dyesWidth + themeWidth + gearWidth + (itemDyeWidth * 2) + (pointsWidth * 4) + (columnSpacingX * 9) + 10;
+        string[] requiredDyes =
+        {
+            SERVICES.frdata.WeaponDyeName,
+            SERVICES.frdata.HeadDyeName,
+            SERVICES.frdata.BodyDyeName,
+            SERVICES.frdata.GlovesDyeName,
+            SERVICES.frdata.LegsDyeName,
+            SERVICES.frdata.BootsDyeName
+        };
+
+        string[] themes =
+        {
+            SERVICES.frdata.WeaponThemeName,
+            SERVICES.frdata.HeadThemeName,
+            SERVICES.frdata.BodyThemeName,
+            SERVICES.frdata.GlovesThemeName,
+            SERVICES.frdata.LegsThemeName,
+            SERVICES.frdata.BootsThemeName,
+            SERVICES.frdata.EarringsThemeName,
+            SERVICES.frdata.NecklaceThemeName,
+            SERVICES.frdata.BraceletThemeName,
+            SERVICES.frdata.RightRingThemeName,
+            SERVICES.frdata.LeftRingThemeName
+        };
+
+        string[] gearNames = SERVICES.FRSlots
+            .Select(slot =>
+                EquippedGearService.CurrentEquippedGear[slot].Name ?? string.Empty)
+            .ToArray();
+
+        string[] itemDyes = SERVICES.FRSlots
+            .SelectMany(slot =>
+            {
+                EquippedItemData gear =
+                    EquippedGearService.CurrentEquippedGear[slot];
+
+                return new[]
+                {
+                    gear.Stain1 ?? string.Empty,
+                    gear.Stain2 ?? string.Empty
+                };
+            })
+            .ToArray();
+
+        float longSlotWidth =
+            MeasureColumnWidth(SERVICES.FRSlots, "Slot", 4f);
+
+        float longDyesWidth =
+            MeasureColumnWidth(requiredDyes, "Dyes", 4f);
+
+        float longThemeWidth =
+            MeasureColumnWidth(themes, "Theme", 4f);
+
+        float longGearWidth =
+            MeasureColumnWidth(gearNames, "Gear", 8f);
+
+        float longItemDyeWidth =
+            MeasureColumnWidth(itemDyes, "Dye 1", 8f);
+
+        const int columnCount = 10;
+
+        float columnSpacing =
+            ImGui.GetStyle().ItemSpacing.X * (columnCount - 1);
+
+        float tableWidth =
+            longSlotWidth
+            + longDyesWidth
+            + longThemeWidth
+            + longGearWidth
+            + (longItemDyeWidth * 2)
+            + (pointsWidth * 4)
+            + columnSpacing
+            + 10f;
+
         if (ImGui.BeginTable("CenteredTable", 10, ImGuiTableFlags.Borders | ImGuiTableFlags.SizingFixedFit, new Vector2(tableWidth, 0)))
         {
-            ImGui.TableSetupColumn("Slot", ImGuiTableColumnFlags.WidthFixed, slotWidth);
-            ImGui.TableSetupColumn("Dyes", ImGuiTableColumnFlags.WidthFixed, dyesWidth);
-            ImGui.TableSetupColumn("Theme", ImGuiTableColumnFlags.WidthFixed, themeWidth);
-            ImGui.TableSetupColumn("Gear", ImGuiTableColumnFlags.WidthFixed, gearWidth);
-            ImGui.TableSetupColumn("Item\nDye 1", ImGuiTableColumnFlags.WidthFixed, itemDyeWidth);
-            ImGui.TableSetupColumn("Item\nDye 2", ImGuiTableColumnFlags.WidthFixed, itemDyeWidth);
+            ImGui.TableSetupColumn(
+                "Slot",
+                ImGuiTableColumnFlags.WidthFixed,
+                longSlotWidth);
+
+            ImGui.TableSetupColumn(
+                "Dyes",
+                ImGuiTableColumnFlags.WidthFixed,
+                longDyesWidth);
+
+            ImGui.TableSetupColumn(
+                "Theme",
+                ImGuiTableColumnFlags.WidthFixed,
+                longThemeWidth);
+
+            ImGui.TableSetupColumn(
+                "Gear",
+                ImGuiTableColumnFlags.WidthFixed,
+                longGearWidth);
+
+            ImGui.TableSetupColumn(
+                "Dye 1",
+                ImGuiTableColumnFlags.WidthFixed,
+                longItemDyeWidth);
+
+            ImGui.TableSetupColumn(
+                "Dye 2",
+                ImGuiTableColumnFlags.WidthFixed,
+                longItemDyeWidth);
             ImGui.TableSetupColumn("Slot\nPoints", ImGuiTableColumnFlags.WidthFixed, pointsWidth);
             ImGui.TableSetupColumn("Dye\nPoints", ImGuiTableColumnFlags.WidthFixed, pointsWidth);
             ImGui.TableSetupColumn("Total\nPoints", ImGuiTableColumnFlags.WidthFixed, pointsWidth);
             ImGui.TableSetupColumn("Max\nPoints", ImGuiTableColumnFlags.WidthFixed, pointsWidth);
-            DrawCenteredHeaders("Slot", "Dyes", "Theme", "Gear", "Item Dye", "Item Dye", "Slot\nPoints", "Dye\nPoints", "Total\nPoints", "Max\nPoints");
+            DrawCenteredHeaders(
+                "Slot",
+                "Dyes",
+                "Theme",
+                "Gear",
+                "Dye 1",
+                "Dye 2",
+                "Slot\nPoints",
+                "Dye\nPoints",
+                "Total\nPoints",
+                "Max\nPoints");            
             foreach (string slot in SERVICES.FRSlots)
             {
                 ImGui.TableNextRow();
@@ -669,7 +775,24 @@ public class DisplayWindow : Window, IDisposable
         LOG.Debug(
             $"Refreshed display data. Total themes populated: {DisplayData.Count}.");
     }
-    
+
+    private static float MeasureColumnWidth(IEnumerable<string?> values, string header, float extraPadding = 6f)
+    {
+        float width = ImGui.CalcTextSize(header).X;
+
+        foreach (string? value in values)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                continue;
+
+            width = Math.Max(width, ImGui.CalcTextSize(value).X);
+        }
+
+        return width
+            + (ImGui.GetStyle().CellPadding.X * 2)
+            + extraPadding;
+    }
+
     internal class DisplayItem
     {
         public uint ItemId;
