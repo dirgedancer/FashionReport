@@ -6,6 +6,7 @@ namespace FashionReportCalculator;
 
 internal static class FashionReportXivProvider
 {
+    internal static FashionReportXivState? CurrentState { get; private set; }
     private const string ReportStateUrl =
         "https://fashionreportxiv.com/api/report-state";
 
@@ -65,6 +66,8 @@ internal static class FashionReportXivProvider
         // For this first migration step this also continues using the
         // existing Google Sheet for historical hint -> item mappings.
         await report.ProcessorFromString();
+
+        CurrentState = state;
 
         return report;
     }

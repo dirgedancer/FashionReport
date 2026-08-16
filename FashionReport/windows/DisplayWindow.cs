@@ -20,10 +20,6 @@ public class DisplayWindow : Window, IDisposable
 {
     private readonly Dictionary<string, uint> SlotMax = new() { { "Weapon", 10 }, { "Head", 10 }, { "Body", 10 }, { "Gloves", 10 }, { "Legs", 10 }, { "Boots", 10 }, { "Earrings", 8 }, { "Necklace", 8 }, { "Bracelet", 8 }, { "RightRing", 8 }, { "LeftRing", 8 } };
     private Vector2 _windowSize = new Vector2(1000, 200);
-    private IDalamudTextureWrap? CauldronTexture;
-    private IDalamudTextureWrap? ShortTexture;
-    private IDalamudTextureWrap? LongTexture;
-    private IDalamudTextureWrap? AboutTexture;
     private readonly Vector4[] IconColors = new Vector4[9] { new Vector4(0f, 0f, 1f, 1f), new Vector4(1f, 0f, 0f, 1f), new Vector4(1f, 1f, 0f, 1f), new Vector4(0.5f, 0.5f, 0.5f, 1f), new Vector4(0.8f, 0.8f, 0.8f, 1f), new Vector4(0.4f, 0.2f, 0f, 1f), new Vector4(0f, 1f, 0f, 1f), new Vector4(1f, 1f, 1f, 1f), new Vector4(0.5f, 0f, 0.5f, 1f) };
     private readonly float slotWidth;
     private readonly float themeWidth;
@@ -34,19 +30,12 @@ public class DisplayWindow : Window, IDisposable
     private IFontHandle? ShortWeekFontHandle = CreateFontFromResource("FashionReport.Fonts.Arcade.ttf", 24f, SERVICES.Interface.UiBuilder.FontAtlas);
     private string? uSlot = null;
     private string? uTheme = null;
+    private int? openSolutionScore = null;
     internal Dictionary<string, List<DisplayItem>> DisplayData = new();
-    private Vector2? cacheThemeWindowSize = null;
-    private float? cacheScrollableHeight = null;
-    private List<DisplayItem>? cacheItems = null;
-
     public DisplayWindow() : base("Fashion Report Display Window", ImGuiWindowFlags.NoResize)
     {
         Size = _windowSize;
         SizeCondition = ImGuiCond.Always;
-        CauldronTexture = SERVICES.Texture.CreateFromImageAsync(Assembly.GetExecutingAssembly().GetManifestResourceStream("FashionReport.images.Cauldron.png")!).Result;
-        AboutTexture = SERVICES.Texture.CreateFromImageAsync(Assembly.GetExecutingAssembly().GetManifestResourceStream("FashionReport.images.About.png")!).Result;
-        ShortTexture = SERVICES.Texture.CreateFromImageAsync(Assembly.GetExecutingAssembly().GetManifestResourceStream("FashionReport.images.Short.png")!).Result;
-        LongTexture = SERVICES.Texture.CreateFromImageAsync(Assembly.GetExecutingAssembly().GetManifestResourceStream("FashionReport.images.Long.png")!).Result;
         float padding = ImGui.GetStyle().CellPadding.X * 2;
         slotWidth = ImGui.CalcTextSize("Right Ring (Metallic Cobalt Green)").X + padding;
         themeWidth = ImGui.CalcTextSize("Fashionably Late Allagan").X + padding;
@@ -62,17 +51,36 @@ public class DisplayWindow : Window, IDisposable
     {
         Size = _windowSize;
         SizeCondition = ImGuiCond.Always;
+
+        Vector2 reportWindowPos = ImGui.GetWindowPos();
+        float reportWindowWidth = ImGui.GetWindowWidth();
+
         DrawWeeklyHeader();
         DrawTopButtons();
+
         (float TableWidth, float TableHeight) = GeneralData.IsLongDisplay ? DrawLongTable() : DrawShortTable();
+
         Vector2 WindowPadding = ImGui.GetStyle().WindowPadding;
         const float tableTop = 130f;
 
         _windowSize = new Vector2(
             TableWidth + (WindowPadding.X * 2),
-            tableTop + TableHeight + (WindowPadding.Y * 2) + 8f);        if (uSlot != null)
+            tableTop + TableHeight + (WindowPadding.Y * 2) + 8f);        
+            
+        if (uSlot != null)
+        {
+            DrawThemeWindow(
+                reportWindowPos,
+                reportWindowWidth);
+        }
 
-        DrawThemeWindow();
+        if (openSolutionScore != null)
+        {
+            DrawSolutionWindow(
+                openSolutionScore.Value,
+                reportWindowPos,
+                reportWindowWidth);
+        }
     }
 
     private void DrawWeeklyHeader()
@@ -100,42 +108,78 @@ public class DisplayWindow : Window, IDisposable
 
     private void DrawTopButtons()
     {
-        Vector2 windowSize = ImGui.GetWindowSize();
-        Vector2 padding = ImGui.GetStyle().WindowPadding;
-        Vector2 size = new Vector2(100f, 100f);
-        if (CauldronTexture != null)
+        FashionReportXivState? state =
+            FashionReportXivProvider.CurrentState;
+
+        ImGui.SetCursorPos(new Vector2(10f, 105f));
+
+        string viewButtonText =
+            GeneralData.IsLongDisplay ? "Short" : "Long";
+
+        if (ImGui.Button(viewButtonText))
+            GeneralData.IsLongDisplay = !GeneralData.IsLongDisplay;
+
+        if (ImGui.IsItemHovered())
         {
-            ImGui.SetCursorPos(new Vector2(windowSize.X - size.X, 30));
-            ImGui.Image(CauldronTexture.Handle, size);
-            if (ImGui.IsItemHovered()) ImGui.SetTooltip("Brew Donations (Donate to help)");
-            if (ImGui.IsItemClicked()) Dalamud.Utility.Util.OpenLink("https://ko-fi.com/theredheadedwitch");
+            ImGui.SetTooltip(
+                GeneralData.IsLongDisplay
+                    ? "Switch to Short View"
+                    : "Switch to Long View");
         }
-        if (AboutTexture != null)
+
+        float spacing = ImGui.GetStyle().ItemSpacing.X;
+
+        ImGui.SameLine(0f, spacing);
+
+        bool easy80Available =
+            state?.Easy80Fresh == true &&
+            state.Easy80 != null;
+
+        if (!easy80Available)
+            ImGui.BeginDisabled();
+
+        if (ImGui.Button("Easy 80"))
         {
-            Vector2 aboutSize = new Vector2(size.X / 2, size.Y / 2);
-            float aboutXPos = windowSize.X - size.X - aboutSize.X;
-            float aboutYPos = 30 + size.Y - aboutSize.Y;
-            ImGui.SetCursorPos(new Vector2(aboutXPos, aboutYPos));
-            ImGui.Image(AboutTexture.Handle, aboutSize);
-            if (ImGui.IsItemHovered()) ImGui.SetTooltip("About this plugin");
-            if (ImGui.IsItemClicked())
-                FashionReport.AboutWindow.IsOpen = true;
+            bool closing = openSolutionScore == 80;
+
+            openSolutionScore =
+                closing ? null : 80;
+
+            if (!closing)
+            {
+                uSlot = null;
+                uTheme = null;
+            }
         }
-        else
-            LOG.Error("AboutTexture is null");
-        IDalamudTextureWrap? SwitchTexture = GeneralData.IsLongDisplay ? ShortTexture : LongTexture;
-        if (SwitchTexture != null)
+
+        if (!easy80Available)
+            ImGui.EndDisabled();
+
+        ImGui.SameLine(0f, spacing);
+
+        bool easy100Available =
+            state?.Easy100Fresh == true &&
+            state.Easy100 != null;
+
+        if (!easy100Available)
+            ImGui.BeginDisabled();
+
+        if (ImGui.Button("Easy 100"))
         {
-            ImGui.SetCursorPos(new Vector2(10, 30 + size.Y - (SwitchTexture!.Height / 10)));
-            string tooltipText = GeneralData.IsLongDisplay ? "Switch to Short View" : "Switch to Long View";
-            ImGui.Image(SwitchTexture.Handle, new Vector2(SwitchTexture.Width / 10, SwitchTexture.Height / 10));
-            if (ImGui.IsItemHovered()) ImGui.SetTooltip(tooltipText);
-            if (ImGui.IsItemClicked())
-                GeneralData.IsLongDisplay = !GeneralData.IsLongDisplay;
+            bool closing = openSolutionScore == 100;
+
+            openSolutionScore =
+                closing ? null : 100;
+
+            if (!closing)
+            {
+                uSlot = null;
+                uTheme = null;
+            }
         }
-        else
-            LOG.Error("SwitchTexture is null");
-        ImGui.Spacing();
+
+        if (!easy100Available)
+            ImGui.EndDisabled();
     }
 
     private (float, float) DrawShortTable()
@@ -581,9 +625,19 @@ public class DisplayWindow : Window, IDisposable
         string buttonId = "##" + slot + "_btn";
         if (ImGui.InvisibleButton(buttonId, buttonSize))
         {
-            cacheThemeWindowSize = null;
-            uSlot = slot;
-            uTheme = theme;
+            if (uSlot == slot)
+            {
+                uSlot = null;
+                uTheme = null;
+            }
+            else
+            {
+                uSlot = slot;
+                uTheme = theme;
+
+                // Only one attached companion panel at a time.
+                openSolutionScore = null;
+            }
         }
         ImDrawListPtr drawList = ImGui.GetWindowDrawList();
         uint blueColor = ImGui.ColorConvertFloat4ToU32(new Vector4(0f, 0.5f, 1f, 1f));
@@ -592,101 +646,157 @@ public class DisplayWindow : Window, IDisposable
         drawList.AddLine(new Vector2(pos.X, pos.Y + textSize.Y + 1), new Vector2(pos.X + textSize.X, pos.Y + textSize.Y + 1), blueColor, 1f);
     }
 
-    private void DrawThemeWindow()
+    private void DrawThemeWindow(
+        Vector2 reportWindowPos,
+        float reportWindowWidth)
     {
-        if (!cacheThemeWindowSize.HasValue)
+        if (uSlot == null || uTheme == null)
+            return;
+
+        if (!DisplayData.TryGetValue(
+                uSlot,
+                out List<DisplayItem>? items))
         {
-            DisplayData.TryGetValue(uSlot!, out List<DisplayItem>? items);
-            if (items == null) return;
-            cacheItems = items;
-            ImGui.SetWindowFontScale(2.5f);
-            float TitleHeight = ImGui.CalcTextSize(uTheme).Y;
-            ImGui.SetWindowFontScale(1f);
-            float sep = 1.0f + 2 * ImGui.GetStyle().FramePadding.Y;
-            float spac = ImGui.GetStyle().ItemSpacing.Y;
-            float sp = ((2 * sep) + spac);
-            cacheScrollableHeight = (((cacheItems.Count > 10 ? 10 : cacheItems.Count) * 50) + (((cacheItems.Count > 10 ? 10 : cacheItems.Count) - 1) * 12));
-            cacheThemeWindowSize = new Vector2(1000f, 30 + TitleHeight + 12 + (float)cacheScrollableHeight + 15);
+            return;
         }
-        ImGui.SetNextWindowSize(cacheThemeWindowSize.Value, ImGuiCond.Always);
-        ImGui.Begin($"Fashion Report Theme Items", ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoResize);
-        ImGui.SetWindowFontScale(2.5f);
-        Vector2 themeTextSize = ImGui.CalcTextSize(uTheme);
-        float centerPos = (ImGui.GetContentRegionAvail().X - themeTextSize.X) * 0.5f;
-        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + centerPos);
-        ImGui.Text(uTheme);
-        ImGui.SetWindowFontScale(1f);
-        ImGui.Spacing();
-        ImGui.Separator();
-        ImGui.Spacing();
-        ImGui.BeginChild("ItemScrollRegion", new Vector2(0, cacheScrollableHeight!.Value), false);
-        uint MaxIcons = 1;
-        for (int c = 0; c < cacheItems!.Count; c++)
+
+        const float iconSize = 32f;
+        const float rowHeight = 40f;
+        const float attachmentGap = 4f;
+        const int maxVisibleRows = 8;
+
+        float maxItemNameWidth = items.Count > 0
+            ? items.Max(item => ImGui.CalcTextSize(item.Name).X)
+            : 0f;
+
+        float titleWidth = ImGui.CalcTextSize(uTheme).X;
+
+        float panelWidth = Math.Clamp(
+            Math.Max(
+                titleWidth + 60f,
+                maxItemNameWidth + iconSize + 70f),
+            280f,
+            460f);
+
+        ImGuiViewportPtr viewport = ImGui.GetMainViewport();
+
+        float panelX =
+            reportWindowPos.X
+            - panelWidth
+            - attachmentGap;
+
+        // Fall back to the right side if there isn't enough
+        // screen space to attach on the left.
+        if (panelX < viewport.WorkPos.X)
         {
-            uint iIcons = DrawItem(cacheItems[c]);
-            if (iIcons + 1 > MaxIcons) MaxIcons = iIcons + 1;
-            if (c + 1 < cacheItems.Count)
+            panelX =
+                reportWindowPos.X
+                + reportWindowWidth
+                + attachmentGap;
+        }
+
+        ImGui.SetNextWindowPos(
+            new Vector2(panelX, reportWindowPos.Y),
+            ImGuiCond.Always);
+
+        ImGui.SetNextWindowSizeConstraints(
+            new Vector2(panelWidth, 0f),
+            new Vector2(panelWidth, float.MaxValue));
+
+        bool open = true;
+
+        if (ImGui.Begin(
+            $"{uTheme}###FashionReportThemeItems",
+            ref open,
+            ImGuiWindowFlags.AlwaysAutoResize
+                | ImGuiWindowFlags.NoMove
+                | ImGuiWindowFlags.NoSavedSettings))
+        {
+            if (items.Count == 0)
             {
-                ImGui.Spacing();
-                ImGui.Separator();
-                ImGui.Spacing();
+                ImGui.TextDisabled(
+                    "No qualifying items are available.");
+            }
+            else
+            {
+                int visibleRows =
+                    Math.Min(items.Count, maxVisibleRows);
+
+                float childHeight =
+                    visibleRows * rowHeight;
+
+                ImGui.BeginChild(
+                    "ThemeItemScrollRegion",
+                    new Vector2(0f, childHeight),
+                    false);
+
+                if (ImGui.BeginTable(
+                    "ThemeItemTable",
+                    2,
+                    ImGuiTableFlags.SizingFixedFit
+                        | ImGuiTableFlags.RowBg))
+                {
+                    ImGui.TableSetupColumn(
+                        "Icon",
+                        ImGuiTableColumnFlags.WidthFixed,
+                        iconSize + 6f);
+
+                    ImGui.TableSetupColumn(
+                        "Item",
+                        ImGuiTableColumnFlags.WidthStretch);
+
+                    foreach (DisplayItem item in items)
+                    {
+                        ImGui.TableNextRow(
+                            ImGuiTableRowFlags.None,
+                            rowHeight);
+
+                        ImGui.TableSetColumnIndex(0);
+
+                        if (SERVICES.Texture
+                            .GetFromGameIcon(
+                                new GameIconLookup
+                                {
+                                    IconId = item.IconId
+                                })
+                            .TryGetWrap(
+                                out IDalamudTextureWrap? icon,
+                                out _)
+                            && icon != null)
+                        {
+                            ImGui.Image(
+                                icon.Handle,
+                                new Vector2(iconSize, iconSize));
+                        }
+
+                        ImGui.TableSetColumnIndex(1);
+
+                        ImGui.TextUnformatted(item.Name);
+
+                        ImGui.TextDisabled(
+                            $"Level {item.Level}");
+                    }
+
+                    ImGui.EndTable();
+                }
+
+                ImGui.EndChild();
             }
         }
-        ImGui.EndChild();
-        float buttonWidth = ImGui.CalcTextSize("Close").X + ImGui.GetStyle().FramePadding.X * 2;
-        float buttonX = ImGui.GetWindowWidth() - ImGui.GetStyle().WindowPadding.X - buttonWidth;
-        ImGui.SetCursorPos(new Vector2(buttonX, 30));
-        if (ImGui.Button("Close"))
+
+        ImGui.End();
+
+        if (!open)
         {
             uSlot = null;
-            cacheThemeWindowSize = null;
-            cacheItems = null;
-            cacheScrollableHeight = null;
+            uTheme = null;
         }
-        ImGui.End();
-    }
-
-    uint DrawItem(DisplayItem display)
-    {
-        if (display.ItemId == 0) return 0;
-        float yPos = ImGui.GetCursorPosY();
-        float xPos = ImGui.GetCursorPosX();
-        if (SERVICES.Texture.GetFromGameIcon(new GameIconLookup { IconId = display.IconId }).TryGetWrap(out IDalamudTextureWrap? icon, out _))
-            if (icon != null) ImGui.Image(icon.Handle, new Vector2(50f, 50f));
-        ImGui.SameLine();
-        ImGui.SetWindowFontScale(2f);
-        ImGui.Text(display.Name);
-        ImGui.SetWindowFontScale(1f);
-        ImGui.SetCursorPos(new Vector2(xPos, yPos + 30));
-        ImGui.Text("\t\t\t\t\tLevel: " + display.Level);
-        float rightEdge = ImGui.GetWindowContentRegionMax().X;
-        List<(uint IconId, bool Show)> icons = new()
-        {
-            (61432, display.IsQuestReward),
-            (65014, display.IsWolf),
-            (60831, display.IsDuty),
-            (65005, display.IsSeals),
-            (65002, display.IsVendor),
-            (66456, display.IsCraftable)
-        };
-        foreach ((uint iconId, bool show) in icons)
-        {
-            if (!show) continue;
-            rightEdge -= 50f + 2f;
-            if (SERVICES.Texture.GetFromGameIcon(new GameIconLookup { IconId = iconId }).TryGetWrap(out IDalamudTextureWrap? extraIcon, out _))
-                if (extraIcon != null) { ImGui.SetCursorPos(new Vector2(rightEdge, yPos)); ImGui.Image(extraIcon.Handle, new Vector2(50f, 50f)); }
-        }
-        ImGui.SetCursorPosY(yPos + 50f);
-        return (uint)icons.Count(i => i.Show) + 1;
     }
 
     private Vector4 GetIconColor(uint iconId) => IconColors[(iconId - 22804) % 9];
 
     public void Dispose()
     {
-        CauldronTexture?.Dispose();
-        ShortTexture?.Dispose();
-        LongTexture?.Dispose();
         WeeklyThemeFontHandle?.Dispose();
         WeekFontHandle?.Dispose();
         ShortWeeklyThemeFontHandle?.Dispose();
@@ -766,14 +876,33 @@ public class DisplayWindow : Window, IDisposable
             DisplayData[slot] = slotItems;
         }
 
-        cacheThemeWindowSize = null;
-        cacheScrollableHeight = null;
-        cacheItems = null;
         uSlot = null;
         uTheme = null;
 
         LOG.Debug(
             $"Refreshed display data. Total themes populated: {DisplayData.Count}.");
+    }
+
+    private static string FormatSolutionSlot(string slot)
+    {
+        return slot.ToLowerInvariant() switch
+        {
+            "weapon" => "Weapon",
+            "head" => "Head",
+            "body" => "Body",
+            "hands" => "Gloves",
+            "gloves" => "Gloves",
+            "legs" => "Legs",
+            "feet" => "Boots",
+            "boots" => "Boots",
+            "earrings" => "Earrings",
+            "neck" => "Necklace",
+            "necklace" => "Necklace",
+            "wrist" => "Bracelet",
+            "bracelet" => "Bracelet",
+            "ring" => "Ring",
+            _ => slot
+        };
     }
 
     private static float MeasureColumnWidth(IEnumerable<string?> values, string header, float extraPadding = 6f)
@@ -791,6 +920,140 @@ public class DisplayWindow : Window, IDisposable
         return width
             + (ImGui.GetStyle().CellPadding.X * 2)
             + extraPadding;
+    }
+
+    private void DrawSolutionButtons()
+    {
+        FashionReportXivState? state =
+            FashionReportXivProvider.CurrentState;
+
+        if (state == null)
+            return;
+
+        ImGui.SetCursorPos(new Vector2(75f, 105f));
+
+        bool easy80Available =
+            state.Easy80Fresh &&
+            state.Easy80 != null;
+
+        if (!easy80Available)
+            ImGui.BeginDisabled();
+
+        if (ImGui.Button("Easy 80"))
+            openSolutionScore = 80;
+
+        if (!easy80Available)
+            ImGui.EndDisabled();
+
+        ImGui.SameLine();
+
+        bool easy100Available =
+            state.Easy100Fresh &&
+            state.Easy100 != null;
+
+        if (!easy100Available)
+            ImGui.BeginDisabled();
+
+        if (ImGui.Button("Easy 100"))
+            openSolutionScore = 100;
+
+        if (!easy100Available)
+            ImGui.EndDisabled();
+    }
+
+        private void DrawSolutionWindow(
+            int score,
+            Vector2 reportWindowPos,
+            float reportWindowWidth)
+        {
+        FashionReportXivState? state =
+            FashionReportXivProvider.CurrentState;
+
+        FashionReportXivSolution? solution =
+            score == 80 ? state?.Easy80 : state?.Easy100;
+
+        if (solution == null)
+        {
+            openSolutionScore = null;
+            return;
+        }
+
+        bool open = true;
+
+        const float solutionWidth = 220f;
+        const float attachmentGap = 4f;
+
+        ImGuiViewportPtr viewport = ImGui.GetMainViewport();
+
+        float solutionX =
+            reportWindowPos.X - solutionWidth - attachmentGap;
+
+        // If there isn't enough room on the left, attach it
+        // to the right instead of letting it go off-screen.
+        if (solutionX < viewport.WorkPos.X)
+        {
+            solutionX =
+                reportWindowPos.X
+                + reportWindowWidth
+                + attachmentGap;
+        }
+
+        Vector2 solutionPos = new(
+            solutionX,
+            reportWindowPos.Y);
+
+        ImGui.SetNextWindowPos(
+            solutionPos,
+            ImGuiCond.Always);
+
+        ImGui.SetNextWindowSizeConstraints(
+            new Vector2(solutionWidth, 0f),
+            new Vector2(solutionWidth, float.MaxValue));
+
+        if (ImGui.Begin(
+            $"Easy {score} Solution###FashionReportEasy{score}",
+            ref open,
+            ImGuiWindowFlags.AlwaysAutoResize
+                | ImGuiWindowFlags.NoMove
+                | ImGuiWindowFlags.NoSavedSettings))
+        {
+            ImGui.Text($"FashionReportXIV Easy {score}");
+            ImGui.Separator();
+
+            if (solution.ItemPairs.Count > 0)
+            {
+                ImGui.Text("Gear");
+
+                foreach (FashionReportXivItemPair item in solution.ItemPairs)
+                {
+                    ImGui.BulletText(
+                        $"{FormatSolutionSlot(item.Slot)}: {item.Name}");
+                }
+            }
+
+            IEnumerable<KeyValuePair<string, string>> dyes =
+                solution.Dyes.Where(x =>
+                    !string.IsNullOrWhiteSpace(x.Value));
+
+            if (dyes.Any())
+            {
+                if (solution.ItemPairs.Count > 0)
+                    ImGui.Spacing();
+
+                ImGui.Text("Dyes");
+
+                foreach ((string slot, string dye) in dyes)
+                {
+                    ImGui.BulletText(
+                        $"{FormatSolutionSlot(slot)}: {dye}");
+                }
+            }
+        }
+
+        ImGui.End();
+
+        if (!open)
+            openSolutionScore = null;
     }
 
     internal class DisplayItem
