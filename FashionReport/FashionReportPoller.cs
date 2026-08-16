@@ -35,16 +35,18 @@ internal static class FashionReportPoller
     {
         try
         {
-            FashionReportDataStorage? report = await GoogleSheetData.GetLatestReport();
+            FashionReportDataStorage? report =
+                await FashionReportXivProvider.GetCurrentReportAsync();
             if (report == null) return DefaultInterval;
-            if (CurrentWeek > SERVICES.frdata.Week)
+            if (report.Week > SERVICES.frdata.Week)
             {
-                if (await GoogleSheetData.WeekExists(CurrentWeek) && report.Week > SERVICES.frdata.Week)
-                {
-                    SERVICES.frdata = report;
-                    LOG.Info("Tuesday Server and Client updated, waiting until Friday");
+                SERVICES.frdata = report;
+                LOG.Info(
+                    $"FashionReportXIV updated to week {report.Week}: " +
+                    $"{report.WeeklyThemeName}");
+
+                if (GetFridayOfDyeWeek(CurrentWeek) > DateTime.UtcNow)
                     return WaitForFriday();
-                }
             }
             else if (CurrentWeek == SERVICES.frdata.Week && GetFridayOfDyeWeek(CurrentWeek) > DateTime.UtcNow)
             {
@@ -58,7 +60,6 @@ internal static class FashionReportPoller
             if (report.GlovesDye != null) dyesFound++;
             if (report.LegsDye != null) dyesFound++;
             if (report.BootsDye != null) dyesFound++;
-            await report.ProcessFromId();
             if (report != SERVICES.frdata)
             {
                 SERVICES.frdata = report;
