@@ -224,7 +224,7 @@ internal static class GoogleSheetWriter
     internal static async Task InsertFashionReport(uint week, uint? weeklyTheme, uint? weapon, uint? head, uint? body, uint? gloves, uint? legs, uint? boots, uint? earrings, uint? necklace, uint? bracelet, uint? rightRing, uint? leftRing, ulong date, uint? weaponDye, uint? headDye, uint? bodyDye, uint? glovesDye, uint? legsDye, uint? bootsDye)
     {
         IPlayerCharacter? Local = null;
-        try { await SERVICES.Framework.RunOnTick(() => Local = SERVICES.ClientState.LocalPlayer); }
+        try { await SERVICES.Framework.RunOnTick(() => Local = SERVICES.Objects.LocalPlayer); }
         catch (Exception ex) { LOG.Debug($"LocalPlayer crash: {ex}"); return; }
         if (Local == null) return;
         string name = Local.Name.ToString();
@@ -267,7 +267,7 @@ internal static class GoogleSheetWriter
     {
         string token = DiscordOAuth._discordConfiguration.Discord;
         if (string.IsNullOrEmpty(token)) return;
-        IPlayerCharacter? player = SERVICES.ClientState.LocalPlayer;
+        IPlayerCharacter? player = SERVICES.Objects.LocalPlayer;
         if (player == null) return;
         string name = player.Name.ToString();
         string[] parts = name.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);

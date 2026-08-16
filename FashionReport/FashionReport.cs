@@ -102,7 +102,7 @@ public sealed class FashionReport : IDalamudPlugin
             ptr = SERVICES.GameGui.GetAddonByName(addonName);
             unsafe
             {
-                if (ptr != nint.Zero || ((AtkUnitBase*)ptr)->IsReady)
+                if (ptr != nint.Zero && ((AtkUnitBase*)ptr)->IsReady)
                     return ptr;
             }
             await Task.Delay(pollIntervalMs);
@@ -122,9 +122,14 @@ public sealed class FashionReport : IDalamudPlugin
                 fashionCheck = new(await GetAddonSafe("FashionCheck"));
                 if (fashionCheck.IsNull) { LOG.Warning("FashionCheck addon failure."); return; }
             }
-            while (string.IsNullOrEmpty(fashionCheck.TryGetAtkValue<string>(130)))
+            for (int i = 0; i < 50 && fashionCheck.AtkCount < 124; i++)
                 await Task.Delay(100);
-            uint oldWeek = SERVICES.frdata.Week;
+
+            if (fashionCheck.AtkCount < 124)
+            {
+                LOG.Warning($"FashionCheck AtkValues did not fully load. Count: {fashionCheck.AtkCount}");
+                return;
+            }            uint oldWeek = SERVICES.frdata.Week;
             FashionReportDataStorage temp = new();
             LOG.Debug("Reading FashionCheck addon data...");
             temp.Week = FashionReportPoller.CurrentWeek;

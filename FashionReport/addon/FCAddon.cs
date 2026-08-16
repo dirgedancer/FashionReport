@@ -1,7 +1,6 @@
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using System.Runtime.InteropServices;
-using ValueType = FFXIVClientStructs.FFXIV.Component.GUI.ValueType;
-
+using ValueType = FFXIVClientStructs.FFXIV.Component.GUI.AtkValueType;
 
 namespace FashionReportCalculator;
 
@@ -50,10 +49,10 @@ public unsafe class FCAddon
             {
                 case ValueType.String:
                 case ValueType.ManagedString:
-                case ValueType.String8:
-                    if (atkValueRef.String.Value == (byte*)IntPtr.Zero) return typeof(T) == typeof(string) ? (T)(object)string.Empty : default;
-                    return typeof(T) == typeof(string) ? (T)(object)Marshal.PtrToStringUTF8((IntPtr)atkValueRef.String.Value)! : default;
-
+                case ValueType.ConstString:
+                    return typeof(T) == typeof(string)
+                        ? (T)(object)atkValueRef.String.ToString()
+                        : default;
                 case ValueType.WideString:
                     if (atkValueRef.WideString == (char*)IntPtr.Zero) return typeof(T) == typeof(string) ? (T)(object)string.Empty : default;
                     return typeof(T) == typeof(string) ? (T)(object)Marshal.PtrToStringUni((nint)atkValueRef.WideString)! : default;
